@@ -62,6 +62,12 @@ line straight through them.
 
 ## The CO2 alert
 
+Settings → Collection → **Warn me about** chooses which sensors may raise a
+warning: a bedroom filling up matters, a server rack may not. A sensor switched
+off there still shows its reading — it just stops raising the menu-bar glyph and
+the notification. New sensors alert until you say otherwise, since a warning
+arriving unasked is safer than one missed.
+
 CO2 is the one reading here with an actionable threshold, so it is the only one
 tinted. Above the "elevated" threshold (1000 ppm by default) the bar shows an
 air-quality glyph; above "high" (1500 ppm) it turns red. Optionally it notifies

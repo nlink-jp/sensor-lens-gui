@@ -303,6 +303,35 @@ struct CollectionSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Warn me about") {
+                if model.co2Sensors.isEmpty {
+                    Text("No CO2 sensor is being collected. Only the Meter Pro CO2 reports it.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    // Which rooms are worth an interruption is the user's call:
+                    // a bedroom filling up matters, a server rack may not.
+                    ForEach(model.co2Sensors) { sensor in
+                        Toggle(isOn: Binding(
+                            get: { prefs.alertsOnCO2(from: sensor.deviceID) },
+                            set: { prefs.setCO2Alerts($0, for: sensor.deviceID) }
+                        )) {
+                            HStack {
+                                Text(sensor.name)
+                                Spacer()
+                                if let ppm = sensor.metrics["co2_ppm"] {
+                                    Text(Format.bare("co2_ppm", ppm))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    Text("A sensor switched off here still shows its reading — it just stops raising the menu-bar warning and the notification.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
     }

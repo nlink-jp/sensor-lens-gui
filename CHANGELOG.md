@@ -75,3 +75,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   filling up was silent unless that meter happened to be on display and
   notifications were switched on. The popover names the room when the warning
   comes from a sensor that is not shown.
+- Which CO2 sensors may raise a warning is now a setting. A bedroom filling up
+  matters; a server rack may not. Silencing a sensor stops the menu-bar glyph
+  and the notification without hiding its reading, and a sensor added later
+  alerts until it is silenced.

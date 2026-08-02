@@ -110,6 +110,13 @@ Sources/SensorLens/
   from a sensor that is not on display, the popover names it, so the menu-bar
   glyph is never unexplained.
 
+- **Which sensors may alert is stored as the exception, not the selection.**
+  `Preferences.alertMuted` holds the silenced device IDs, so a meter added later
+  alerts without anyone remembering to opt it in — a warning arriving unasked is
+  the safe direction, being missed is not. Silencing a sensor stops the glyph
+  and the notification; it does not hide the reading, and a silenced sensor on
+  the bar is still tinted, because the colour states what the number is.
+
 - Go marshals a nil slice as `null`, so `CLIRunner.decode` maps `null` to an
   empty list. "No gaps" is the good outcome, not an error to show.
 

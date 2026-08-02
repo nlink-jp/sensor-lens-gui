@@ -28,11 +28,22 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(notifyOnCO2, forKey: Keys.notifyOnCO2) }
     }
 
+    /// Sensors the user does not want to hear about.
+    ///
+    /// Stored as the exception rather than the selection, so that a meter added
+    /// later alerts by default. The safe direction for a warning is to arrive
+    /// unasked rather than to be missed because nobody thought to opt in — and
+    /// silencing the server rack is a deliberate act, worth recording as one.
+    @Published private var alertMuted: Set<String> {
+        didSet { defaults.set(Array(alertMuted).sorted(), forKey: Keys.alertMuted) }
+    }
+
     private enum Keys {
         static let menuBarItems = "menuBarItems"
         static let co2Warn = "co2Warn"
         static let co2Alert = "co2Alert"
         static let notifyOnCO2 = "notifyOnCO2"
+        static let alertMuted = "co2AlertMutedDevices"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -41,6 +52,20 @@ final class Preferences: ObservableObject {
         self.co2Warn = defaults.object(forKey: Keys.co2Warn) as? Double ?? 1000
         self.co2Alert = defaults.object(forKey: Keys.co2Alert) as? Double ?? 1500
         self.notifyOnCO2 = defaults.object(forKey: Keys.notifyOnCO2) as? Bool ?? false
+        self.alertMuted = Set(defaults.stringArray(forKey: Keys.alertMuted) ?? [])
+    }
+
+    /// Whether a sensor's CO2 is allowed to raise the menu-bar glyph and a
+    /// notification. Which rooms are worth being interrupted about is the
+    /// user's call: a bedroom filling up matters, a server rack may not.
+    func alertsOnCO2(from deviceID: String) -> Bool { !alertMuted.contains(deviceID) }
+
+    func setCO2Alerts(_ enabled: Bool, for deviceID: String) {
+        if enabled {
+            alertMuted.remove(deviceID)
+        } else {
+            alertMuted.insert(deviceID)
+        }
     }
 
     func isOnMenuBar(_ item: MenuBarItem) -> Bool { menuBarItems.contains(item) }

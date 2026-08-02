@@ -66,6 +66,62 @@ final class CO2AlertTests: XCTestCase {
         XCTAssertEqual(got?.level, .ok)
     }
 
+    // MARK: - Choosing which sensors alert
+
+    private func makePrefs() -> Preferences {
+        Preferences(defaults: UserDefaults(suiteName: "sensor-lens-tests-\(UUID().uuidString)")!)
+    }
+
+    /// A meter added later must alert without anyone remembering to opt it in —
+    /// a warning arriving unasked is the safe direction, being missed is not.
+    func testEverySensorAlertsUntilSilenced() {
+        let prefs = makePrefs()
+        XCTAssertTrue(prefs.alertsOnCO2(from: "never-seen-before"))
+    }
+
+    func testSilencingOneSensorLeavesTheOthers() {
+        let prefs = makePrefs()
+        prefs.setCO2Alerts(false, for: "RACK")
+
+        XCTAssertFalse(prefs.alertsOnCO2(from: "RACK"))
+        XCTAssertTrue(prefs.alertsOnCO2(from: "BEDROOM"))
+    }
+
+    func testSilencingIsReversible() {
+        let prefs = makePrefs()
+        prefs.setCO2Alerts(false, for: "RACK")
+        prefs.setCO2Alerts(true, for: "RACK")
+
+        XCTAssertTrue(prefs.alertsOnCO2(from: "RACK"))
+    }
+
+    /// Silencing the server rack is a deliberate act; it must survive a restart.
+    func testSilencePersists() {
+        let suite = UserDefaults(suiteName: "sensor-lens-tests-\(UUID().uuidString)")!
+        Preferences(defaults: suite).setCO2Alerts(false, for: "RACK")
+
+        let reopened = Preferences(defaults: suite)
+        XCTAssertFalse(reopened.alertsOnCO2(from: "RACK"))
+        XCTAssertTrue(reopened.alertsOnCO2(from: "BEDROOM"))
+    }
+
+    /// The point of the setting: the loudest room can be the one you asked not
+    /// to hear about, and then the answer is the next-worst, not silence.
+    func testWorstIgnoresSilencedSensors() {
+        let prefs = makePrefs()
+        prefs.setCO2Alerts(false, for: "RACK")
+
+        let all = [
+            reading("RACK", "Server rack", co2: 2400),
+            reading("BED", "Bedroom", co2: 1100),
+        ]
+        let considered = all.filter { prefs.alertsOnCO2(from: $0.deviceID) }
+
+        let got = CO2Level.worst(considered, warn: warn, alert: alert)
+        XCTAssertEqual(got?.deviceID, "BED")
+        XCTAssertEqual(got?.level, .elevated)
+    }
+
     func testThresholdsAreRespected() {
         let readings = [reading("A", "Room 1", co2: 1200)]
         XCTAssertEqual(CO2Level.worst(readings, warn: 1000, alert: 1500)?.level, .elevated)

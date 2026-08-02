@@ -166,7 +166,22 @@ final class SensorModel: ObservableObject {
     /// can hold more CO2 meters than that, and a room filling up is worth
     /// showing whether or not that meter won a slot.
     var worstCO2: CO2Reading? {
-        CO2Level.worst(readings, warn: preferences.co2Warn, alert: preferences.co2Alert)
+        CO2Level.worst(alertingReadings, warn: preferences.co2Warn, alert: preferences.co2Alert)
+    }
+
+    /// Readings from sensors the user wants to be warned about. Muting a sensor
+    /// silences the glyph and the notification; it does not hide the reading,
+    /// and a muted sensor put on the bar is still tinted — the colour states
+    /// what the number is, which stays true whether or not you asked to be
+    /// interrupted about it.
+    private var alertingReadings: [DeviceReading] {
+        readings.filter { preferences.alertsOnCO2(from: $0.deviceID) }
+    }
+
+    /// The collected sensors that report CO2 at all — the ones worth listing as
+    /// alert candidates.
+    var co2Sensors: [DeviceReading] {
+        readings.filter { $0.metrics["co2_ppm"] != nil }
     }
 
     /// The level the menu bar's glyph reflects.
@@ -275,7 +290,7 @@ final class SensorModel: ObservableObject {
             notifiedHighCO2.removeAll()
             return
         }
-        for r in readings {
+        for r in alertingReadings {
             guard let ppm = r.metrics["co2_ppm"], !r.stale else { continue }
             let level = CO2Level.of(ppm, warn: preferences.co2Warn, alert: preferences.co2Alert)
             if level == .high {
