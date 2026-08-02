@@ -63,3 +63,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   the current value above them moved on; they now reload while it is on screen.
 - The popover header shows how long ago the last reading arrived, so "is this
   still live?" is answerable by looking rather than by trusting.
+- The freshness label read "0s ago" permanently. It computed the age at render
+  time, and SwiftUI only redraws when an observed value changes — so it showed a
+  frozen clock, the exact impression it was added to dispel. A TimelineView now
+  ticks it every second.

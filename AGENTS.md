@@ -67,6 +67,11 @@ Sources/SensorLens/
   that mode while a menu or popover is being tracked — so the readings would
   freeze for exactly as long as the user held the panel open to look at them.
 
+- **Elapsed-time labels need a `TimelineView`, not `Date()` at render time.**
+  SwiftUI redraws only when something it observes changes, so an age computed
+  inline renders once and sits there — the "· 0s ago" freshness label read "0s
+  ago" permanently, which is precisely the frozen clock it exists to rule out.
+
 - **The popover reloads its sparklines in a loop, not once on appear.** A panel
   left open would otherwise keep the shape it had when it opened while the
   number above it moved on. `.task` is cancelled when the view goes away, so the

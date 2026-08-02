@@ -91,10 +91,19 @@ struct PopoverView: View {
                 .foregroundStyle(.secondary)
             // Evidence, not a claim: a panel left open should say when it last
             // heard anything, so "is this still live?" is answerable by looking.
+            //
+            // Driven by a TimelineView rather than read at render time. SwiftUI
+            // only redraws when something it observes changes, and `lastUpdated`
+            // changes once a minute — so a plain `Date()` here rendered "0s ago"
+            // and then sat there, producing exactly the frozen clock this label
+            // exists to rule out. The schedule ticks the text itself; nothing
+            // else in the popover redraws with it.
             if let updated = model.lastUpdated {
-                Text("· \(Format.age(Date().timeIntervalSince(updated)))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    Text("· \(Format.age(context.date.timeIntervalSince(updated)))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if model.isBusy {
