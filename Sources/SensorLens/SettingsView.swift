@@ -10,7 +10,7 @@ struct SettingsView: View {
             CollectionSettings().tabItem { Label("Collection", systemImage: "antenna.radiowaves.left.and.right") }
             AboutSettings().tabItem { Label("About", systemImage: "info.circle") }
         }
-        .padding(16)
+        .padding(12)
     }
 }
 
@@ -30,7 +30,7 @@ struct MenuBarSettings: View {
                 ContentUnavailableView("Nothing collected yet", systemImage: "sensor")
             } else {
                 shownSection
-                Divider().padding(.vertical, 2)
+                Divider()
                 availableSection
             }
         }
@@ -62,13 +62,15 @@ struct MenuBarSettings: View {
                 List {
                     ForEach(prefs.menuBarItems) { item in
                         shownRow(item)
+                            .listRowInsets(Self.rowInsets)
                     }
                     .onMove { prefs.moveMenuBarItems(from: $0, to: $1) }
                 }
                 .listStyle(.inset)
+                .environment(\.defaultMinListRowHeight, Self.rowHeight)
                 // Sized for the most it can ever hold, so the list below does
                 // not jump up and down as readings are added and removed.
-                .frame(height: CGFloat(Preferences.maxMenuBarItems) * 28 + 14)
+                .frame(height: CGFloat(Preferences.maxMenuBarItems) * Self.rowHeight + 14)
             }
         }
     }
@@ -131,7 +133,7 @@ struct MenuBarSettings: View {
 
             List {
                 ForEach(model.readings) { reading in
-                    Section(reading.name) {
+                    Section {
                         // Identified by device+metric, never by the metric name
                         // alone. A List's ForEach ids must be unique across the
                         // whole list, not within a section, and "temperature_c"
@@ -140,11 +142,21 @@ struct MenuBarSettings: View {
                         // same row, and acting on one acted on them all.
                         ForEach(MenuBarSettings.rows(for: reading)) { item in
                             availableRow(reading: reading, item: item)
+                                .listRowInsets(Self.rowInsets)
                         }
+                    } header: {
+                        // A plain caption rather than a prominent header: with
+                        // thirty devices the default heading turned the list
+                        // into mostly headings.
+                        Text(reading.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 4)
                     }
                 }
             }
             .listStyle(.inset)
+            .environment(\.defaultMinListRowHeight, Self.rowHeight)
         }
     }
 
@@ -174,6 +186,14 @@ struct MenuBarSettings: View {
             }
         }
     }
+
+    // MARK: - Metrics of the layout itself
+
+    /// Rows are compact deliberately. This pane is a long list of one-line
+    /// facts, and at the default row height thirty devices become a scroll
+    /// through mostly empty space.
+    static let rowHeight: CGFloat = 20
+    static let rowInsets = EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8)
 
     // MARK: - Helpers
 
