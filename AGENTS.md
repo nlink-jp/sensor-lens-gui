@@ -86,3 +86,18 @@ Implemented and running: menu bar, popover, history with gaps, settings.
 alongside the daemon without double-spending the API budget.
 
 Not yet done: notarized release, submodule registration, org profile entry.
+
+## SwiftUI identity: a bug worth not repeating
+
+The settings list identified its rows with `ForEach(metrics, id: \.self)`. A
+`List`'s `ForEach` ids must be unique across the **whole list**, not within a
+`Section` — and `"temperature_c"` appears under every sensor. SwiftUI therefore
+treated every device's temperature row as one row, and checking one appeared to
+check them all. The store was never wrong; only the view's identity was.
+
+Row identity now carries the device (`MenuBarSettings.rows(for:)` returns
+`MenuBarItem`s, whose `id` is `deviceID/metric`), and
+`MenuBarSettingsTests.testRowIdentitiesAreUniqueAcrossDevices` guards it.
+
+Related: build a `Toggle`'s `Binding` to read the store in its getter rather
+than capturing a snapshot at view-build time.

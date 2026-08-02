@@ -32,8 +32,15 @@ struct MenuBarSettings: View {
                 List {
                     ForEach(model.readings) { reading in
                         Section(reading.name) {
-                            ForEach(Format.sortMetrics(Array(reading.metrics.keys)), id: \.self) { metric in
-                                row(reading: reading, metric: metric)
+                            // Identified by device+metric, never by the metric
+                            // name alone. A List's ForEach ids must be unique
+                            // across the whole list, not within a section, and
+                            // "temperature_c" appears under every sensor — so
+                            // id: \.self made SwiftUI treat every device's
+                            // temperature row as the same row, and checking one
+                            // checked them all.
+                            ForEach(MenuBarSettings.rows(for: reading)) { item in
+                                row(reading: reading, item: item)
                             }
                         }
                     }
@@ -43,20 +50,32 @@ struct MenuBarSettings: View {
         }
     }
 
-    private func row(reading: DeviceReading, metric: String) -> some View {
-        let item = MenuBarItem(deviceID: reading.deviceID, metric: metric)
-        let on = prefs.isOnMenuBar(item)
-        return Toggle(isOn: Binding(get: { on }, set: { _ in prefs.toggleMenuBar(item) })) {
+    /// The selectable rows for one device, in reading order. Pure, so the
+    /// uniqueness their identity depends on can be tested.
+    static func rows(for reading: DeviceReading) -> [MenuBarItem] {
+        Format.sortMetrics(Array(reading.metrics.keys))
+            .map { MenuBarItem(deviceID: reading.deviceID, metric: $0) }
+    }
+
+    private func row(reading: DeviceReading, item: MenuBarItem) -> some View {
+        // Read through the binding rather than capturing a snapshot, so the
+        // toggle reflects the store rather than whatever was true when this
+        // view was last built.
+        let binding = Binding(
+            get: { prefs.isOnMenuBar(item) },
+            set: { _ in prefs.toggleMenuBar(item) }
+        )
+        return Toggle(isOn: binding) {
             HStack {
-                Text(Format.label(metric))
+                Text(Format.label(item.metric))
                 Spacer()
-                if let v = reading.metrics[metric] {
-                    Text(Format.bare(metric, v)).foregroundStyle(.secondary)
+                if let v = reading.metrics[item.metric] {
+                    Text(Format.bare(item.metric, v)).foregroundStyle(.secondary)
                 }
             }
         }
         // Full is a limit, not a failure: the already-chosen items stay toggleable.
-        .disabled(!on && prefs.isMenuBarFull)
+        .disabled(!prefs.isOnMenuBar(item) && prefs.isMenuBarFull)
     }
 }
 
