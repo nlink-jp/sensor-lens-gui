@@ -1,0 +1,229 @@
+import Foundation
+import UserNotifications
+
+/// SensorModel drives the UI and, while the app is running, does the collecting.
+///
+/// Collection happens by ticking the CLI's `now --if-stale`, which polls only
+/// when the stored readings have aged past the interval. That is deliberate: it
+/// means this app collects while it is open — halving the API spend against a
+/// daemon that runs around the clock — while costing nothing if a daemon is
+/// running too. There is no negotiation between the two, and nothing to keep in
+/// sync.
+@MainActor
+final class SensorModel: ObservableObject {
+    @Published private(set) var readings: [DeviceReading] = []
+    @Published private(set) var devices: [Device] = []
+    @Published private(set) var status: Status?
+    @Published private(set) var lastUpdated: Date?
+    @Published private(set) var isBusy = false
+    @Published var lastError: String?
+    @Published var lastErrorDetail: String?
+
+    // Analysis window state.
+    @Published var period = "24h"
+    @Published var selectedDevice: String?
+    @Published var selectedMetric = "temperature_c"
+    @Published private(set) var history: [Reading] = []
+    @Published private(set) var gaps: [Gap] = []
+
+    let preferences: Preferences
+
+    private var timer: Timer?
+    /// App Nap opt-out token, held for the app's lifetime.
+    ///
+    /// Without it macOS freezes the timer of a windowless LSUIElement app and
+    /// the readings quietly stop updating — a bug claude-usage-lens-gui actually
+    /// shipped. Here it would additionally stop collection dead.
+    private var activity: NSObjectProtocol?
+    private var notifiedHighCO2 = Set<String>()
+
+    init(preferences: Preferences = Preferences()) {
+        self.preferences = preferences
+    }
+
+    // MARK: - Lifecycle
+
+    func start() {
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep],
+            reason: "collecting sensor readings")
+
+        Task { await self.refresh(force: false) }
+        scheduleTimer(seconds: 60)
+    }
+
+    /// Re-arm the timer. The tick is deliberately more frequent than the polling
+    /// interval: `--if-stale` decides whether a tick actually costs an API call,
+    /// so ticking often only makes collection resume promptly after a sleep or a
+    /// launch, never more expensive.
+    private func scheduleTimer(seconds: TimeInterval) {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { [weak self] _ in
+            Task { @MainActor in await self?.refresh(force: false) }
+        }
+    }
+
+    // MARK: - Collecting
+
+    /// One cycle: collect if the data has gone stale, then reload state.
+    ///
+    /// force skips the staleness check — the Refresh button, where the user has
+    /// explicitly asked for a fresh reading and is willing to spend the call.
+    func refresh(force: Bool) async {
+        if isBusy { return }
+        isBusy = true
+        defer { isBusy = false }
+
+        do {
+            let fresh = try await runOffMain { force ? try CLIRunner.pollNow() : try CLIRunner.tick() }
+            let status = try await runOffMain { try CLIRunner.status() }
+            let devices = try await runOffMain { try CLIRunner.devices() }
+
+            self.readings = fresh
+            self.status = status
+            self.devices = devices
+            self.lastUpdated = Date()
+            self.lastError = nil
+            self.lastErrorDetail = nil
+
+            preferences.seedIfEmpty(from: fresh)
+            preferences.prune(toCollected: devices)
+            checkCO2(fresh)
+        } catch {
+            report(error)
+        }
+    }
+
+    // MARK: - Menu bar
+
+    /// The chips on the bar, in the order the user chose. An item whose device
+    /// has stopped reporting keeps its place and is marked stale rather than
+    /// vanishing — a chip that disappears reads as a bug, not as a warning.
+    var menuBarChips: [(item: MenuBarItem, text: String, stale: Bool)] {
+        preferences.menuBarItems.compactMap { item in
+            guard let reading = readings.first(where: { $0.deviceID == item.deviceID }),
+                  let value = reading.metrics[item.metric] else { return nil }
+            return (item, Format.value(item.metric, value), reading.stale)
+        }
+    }
+
+    /// The worst CO2 level currently on the bar, which tints it.
+    var menuBarCO2Level: CO2Level? {
+        let levels = preferences.menuBarItems
+            .filter { $0.metric == "co2_ppm" }
+            .compactMap { item -> CO2Level? in
+                guard let r = readings.first(where: { $0.deviceID == item.deviceID }),
+                      let ppm = r.metrics["co2_ppm"], !r.stale else { return nil }
+                return CO2Level.of(ppm, warn: preferences.co2Warn, alert: preferences.co2Alert)
+            }
+        if levels.contains(.high) { return .high }
+        if levels.contains(.elevated) { return .elevated }
+        return levels.isEmpty ? nil : .ok
+    }
+
+    var isCollecting: Bool { status?.collecting ?? false }
+
+    /// Where collection is coming from, said plainly. The app itself counts:
+    /// while it is open and no daemon is loaded, its own tick is the collector.
+    var collectorDescription: String {
+        guard let status else { return "starting…" }
+        if status.daemonLoaded { return "background daemon" }
+        if status.collecting { return "this app, while it is running" }
+        return "nothing is collecting"
+    }
+
+    // MARK: - Background collection toggle
+
+    var isDaemonInstalled: Bool { status?.daemonInstalled ?? false }
+
+    /// Install or remove the LaunchAgent. With it on, collection continues when
+    /// the app is closed; with it off, this app is the only collector and there
+    /// will be gaps whenever it is not running.
+    func setBackgroundCollection(_ on: Bool) async {
+        do {
+            try await runOffMain { on ? try CLIRunner.install() : try CLIRunner.uninstall() }
+            await refresh(force: false)
+        } catch {
+            report(error)
+        }
+    }
+
+    // MARK: - Analysis
+
+    func loadAnalysis() async {
+        guard let device = selectedDevice ?? devices.first(where: \.enabled)?.deviceID else { return }
+        selectedDevice = device
+        let since = "-" + period
+        let metric = selectedMetric
+
+        do {
+            let history = try await runOffMain {
+                try CLIRunner.history(device: device, metric: metric, since: since)
+            }
+            let gaps = try await runOffMain { try CLIRunner.gaps(since: since) }
+            self.history = history
+            self.gaps = gaps.filter { $0.deviceID == device && $0.metric == metric }
+            self.lastError = nil
+        } catch {
+            report(error)
+        }
+    }
+
+    /// Metrics this device has actually reported, in reading order.
+    func metrics(for deviceID: String) -> [String] {
+        guard let r = readings.first(where: { $0.deviceID == deviceID }) else { return [] }
+        return Format.sortMetrics(Array(r.metrics.keys))
+    }
+
+    // MARK: - CO2 notifications
+
+    /// Notify once per device per crossing into the alert band. Re-notifying
+    /// every tick while a room stays stuffy would train the user to ignore it.
+    private func checkCO2(_ readings: [DeviceReading]) {
+        guard preferences.notifyOnCO2 else {
+            notifiedHighCO2.removeAll()
+            return
+        }
+        for r in readings {
+            guard let ppm = r.metrics["co2_ppm"], !r.stale else { continue }
+            let level = CO2Level.of(ppm, warn: preferences.co2Warn, alert: preferences.co2Alert)
+            if level == .high {
+                if notifiedHighCO2.insert(r.deviceID).inserted {
+                    notify(title: "\(r.name): CO2 \(Int(ppm)) ppm",
+                           body: "Above \(Int(preferences.co2Alert)) ppm — worth opening a window.")
+                }
+            } else if level == .ok {
+                notifiedHighCO2.remove(r.deviceID)
+            }
+        }
+    }
+
+    private func notify(title: String, body: String) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
+    }
+
+    // MARK: - Plumbing
+
+    /// Run CLI work off the main thread. Every call spawns a process and waits;
+    /// on the main actor that would stutter the menu bar.
+    private nonisolated func runOffMain<T: Sendable>(_ work: @escaping @Sendable () throws -> T) async throws -> T {
+        try await Task.detached(priority: .utility) { try work() }.value
+    }
+
+    private func report(_ error: Error) {
+        if let cliError = error as? CLIError {
+            lastError = cliError.errorDescription
+            lastErrorDetail = cliError.failureReason
+        } else {
+            lastError = error.localizedDescription
+            lastErrorDetail = nil
+        }
+    }
+}
