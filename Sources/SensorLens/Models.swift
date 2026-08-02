@@ -108,6 +108,22 @@ struct Reading: Codable, Identifiable, Hashable {
     }
 }
 
+/// A downsampled span of one series. `history --bucket` returns these instead of
+/// raw readings — a different shape, so it needs a different decode.
+///
+/// Min and max are carried alongside the mean so a spike is not averaged out of
+/// existence by the very step meant to make the series drawable.
+struct Bucket: Codable, Identifiable, Hashable {
+    let start: Int64
+    let count: Int
+    let min: Double
+    let max: Double
+    let avg: Double
+
+    var id: Int64 { start }
+    var date: Date { Date(timeIntervalSince1970: TimeInterval(start)) }
+}
+
 /// A stretch with no readings — what an app export could fill back in.
 struct Gap: Codable, Identifiable, Hashable {
     let deviceID: String

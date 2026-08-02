@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 /// The popover shows **every collected device**, not just the ones on the bar.
@@ -21,13 +22,25 @@ struct PopoverView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 8) {
+                        // What is on the bar, with the shape behind the number.
+                        ForEach(prefs.menuBarItems) { item in
+                            if let reading = model.readings.first(where: { $0.deviceID == item.deviceID }) {
+                                SparklineRow(item: item, reading: reading,
+                                             series: model.sparklines[item.id] ?? [])
+                            }
+                        }
+
+                        if !prefs.menuBarItems.isEmpty {
+                            Divider().padding(.vertical, 2)
+                        }
+
                         ForEach(model.readings) { reading in
                             DeviceCard(reading: reading)
                         }
                     }
                     .padding(.trailing, 2)
                 }
-                .frame(maxHeight: 380)
+                .frame(maxHeight: 420)
             }
 
             Divider()
@@ -35,6 +48,10 @@ struct PopoverView: View {
         }
         .padding(12)
         .frame(width: 340)
+        // Loaded when the popover opens, not on every poll: it costs no API
+        // calls but does spawn a process per series, and nobody is looking at
+        // the result while the popover is shut.
+        .task { await model.loadSparklines() }
     }
 
     private var header: some View {
@@ -72,6 +89,99 @@ struct PopoverView: View {
         }
         .font(.caption)
     }
+}
+
+/// One menu-bar reading with the last six hours behind it. A number on its own
+/// says less than the same number with a direction: "22°C" versus "22°C, and it
+/// has been climbing all afternoon".
+struct SparklineRow: View {
+    @EnvironmentObject private var prefs: Preferences
+    let item: MenuBarItem
+    let reading: DeviceReading
+    let series: [Bucket]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(reading.name)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Text(Format.label(item.metric))
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                Spacer(minLength: 4)
+                if let trend {
+                    Image(systemName: trend.symbol)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .help(trend.help)
+                }
+                if let value = reading.metrics[item.metric] {
+                    Text(Format.bare(item.metric, value))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(tint(value))
+                }
+            }
+
+            if series.count >= 2 {
+                chart
+                HStack {
+                    Text(Format.bare(item.metric, low))
+                    Spacer()
+                    Text("last 6h")
+                    Spacer()
+                    Text(Format.bare(item.metric, high))
+                }
+                .font(.system(size: 8))
+                .foregroundStyle(.tertiary)
+            } else {
+                Text("Not enough history yet")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                    .frame(height: 20)
+            }
+        }
+        .padding(8)
+        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var chart: some View {
+        Chart(series) { bucket in
+            AreaMark(x: .value("Time", bucket.date), y: .value("Value", bucket.avg))
+                .foregroundStyle(.linearGradient(
+                    colors: [lineColor.opacity(0.28), lineColor.opacity(0.02)],
+                    startPoint: .top, endPoint: .bottom))
+            LineMark(x: .value("Time", bucket.date), y: .value("Value", bucket.avg))
+                .foregroundStyle(lineColor)
+                .interpolationMethod(.monotone)
+        }
+        // A sparkline is a shape, not a reading: the axes would only take room
+        // from it, and the exact numbers sit above and below it already.
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        .chartYScale(domain: domain)
+        .frame(height: 34)
+    }
+
+    private var values: [Double] { series.map(\.avg) }
+    private var domain: ClosedRange<Double> { Sparkline.domain(values) }
+    private var low: Double { values.min() ?? 0 }
+    private var high: Double { values.max() ?? 0 }
+
+    private var lineColor: Color {
+        guard item.metric == "co2_ppm", let v = reading.metrics["co2_ppm"], !reading.stale else {
+            return .accentColor
+        }
+        return CO2Level.of(v, warn: prefs.co2Warn, alert: prefs.co2Alert).color
+    }
+
+    private func tint(_ value: Double) -> Color {
+        guard item.metric == "co2_ppm", !reading.stale else { return .primary }
+        return CO2Level.of(value, warn: prefs.co2Warn, alert: prefs.co2Alert).color
+    }
+
+    private var trend: Sparkline.Trend? { Sparkline.trend(values) }
 }
 
 /// One device's current values.

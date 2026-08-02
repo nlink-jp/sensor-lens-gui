@@ -19,6 +19,17 @@ final class SensorModel: ObservableObject {
     @Published var lastError: String?
     @Published var lastErrorDetail: String?
 
+    /// Recent history for the readings on the menu bar, keyed by MenuBarItem.id.
+    /// Drawn in the popover so the number on the bar comes with the shape that
+    /// produced it — "22°C" says much less than "22°C and falling".
+    @Published private(set) var sparklines: [String: [Bucket]] = [:]
+
+    /// How far back a sparkline reaches, and how coarsely. Six hours covers a
+    /// morning or an evening; ten-minute buckets keep it to a few dozen points
+    /// whether the data came from 5-minute polling or a 1-minute app export.
+    static let sparklineSince = "-6h"
+    static let sparklineBucket = "10m"
+
     // Analysis window state.
     @Published var period = "24h"
     @Published var selectedDevice: String?
@@ -92,6 +103,35 @@ final class SensorModel: ObservableObject {
         } catch {
             report(error)
         }
+    }
+
+    /// Load the sparklines for whatever is on the bar.
+    ///
+    /// Called when the popover opens rather than on every tick: it reads the
+    /// local database (no API cost) but does spawn a process per series, and
+    /// nobody is looking at the result while the popover is shut.
+    func loadSparklines() async {
+        let items = preferences.menuBarItems
+        guard !items.isEmpty else {
+            sparklines = [:]
+            return
+        }
+        let since = Self.sparklineSince
+        let bucket = Self.sparklineBucket
+
+        var loaded: [String: [Bucket]] = [:]
+        for item in items {
+            let deviceID = item.deviceID
+            let metric = item.metric
+            // One failing series must not blank the others; a device with no
+            // history yet is a normal state, not an error worth reporting.
+            if let series = try? await runOffMain({
+                try CLIRunner.historyBuckets(device: deviceID, metric: metric, since: since, bucket: bucket)
+            }) {
+                loaded[item.id] = series
+            }
+        }
+        sparklines = loaded
     }
 
     // MARK: - Menu bar

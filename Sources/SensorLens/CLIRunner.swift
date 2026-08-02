@@ -168,10 +168,20 @@ enum CLIRunner {
         try decode([Device].self, from: run(["devices", "--refresh", "--json"]))
     }
 
-    static func history(device: String, metric: String, since: String, bucket: String? = nil) throws -> [Reading] {
-        var args = ["history", "--device", device, "--metric", metric, "--since", since, "--json"]
-        if let bucket { args += ["--bucket", bucket] }
-        return try decode([Reading].self, from: run(args))
+    static func history(device: String, metric: String, since: String) throws -> [Reading] {
+        try decode([Reading].self, from: run(
+            ["history", "--device", device, "--metric", metric, "--since", since, "--json"]))
+    }
+
+    /// Downsampled history. Deliberately a separate call rather than an optional
+    /// argument to `history`: `--bucket` makes the CLI emit buckets, a different
+    /// shape entirely, so the two cannot share a return type.
+    ///
+    /// This reads the local database only — no API call, no quota spent.
+    static func historyBuckets(device: String, metric: String, since: String, bucket: String) throws -> [Bucket] {
+        try decode([Bucket].self, from: run(
+            ["history", "--device", device, "--metric", metric,
+             "--since", since, "--bucket", bucket, "--json"]))
     }
 
     static func gaps(since: String) throws -> [Gap] {

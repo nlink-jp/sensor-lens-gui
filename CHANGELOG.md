@@ -31,3 +31,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   authentication failure rather than a quota error.
 - The bundled, Developer ID signed CLI is the trust anchor for binary
   resolution; the environment override is DEBUG-only.
+- Sparklines in the popover for the readings on the menu bar: the last six
+  hours in ten-minute buckets, with a trend arrow, scaled to the data rather
+  than to zero so a two-degree move looks like a move. Read from the local
+  database, so they cost no API calls.
+
+### Fixed
+
+- The menu bar did not re-render when the selection changed, because the
+  selection lives in a separate ObservableObject that the label did not observe.
+  A newly chosen chip appeared only at the next poll, up to a minute later,
+  while the settings checkbox had already ticked.
+- The settings list identified rows by metric name, so every device's
+  temperature row shared one identity and ticking one appeared to tick them all.

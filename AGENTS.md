@@ -29,7 +29,8 @@ Sources/SensorLens/
   SensorModel.swift   @MainActor ObservableObject: the tick, state, CO2 alerts
   Preferences.swift   menu-bar selection and thresholds (UserDefaults)
   Formatting.swift    PURE value rendering, mirroring the CLI's cmd/format.go
-  PopoverView.swift   all collected devices; DeviceCard / MetricChip / ErrorBanner
+  Sparkline.swift     PURE y-domain and trend arithmetic for the popover charts
+  PopoverView.swift   menu-bar picks with sparklines, then all collected devices
   AnalysisView.swift  Swift Charts history with gaps drawn
   SettingsView.swift  menu-bar picks, collection, CO2 thresholds, about
 ```
@@ -78,6 +79,21 @@ Sources/SensorLens/
 
 - Go marshals a nil slice as `null`, so `CLIRunner.decode` maps `null` to an
   empty list. "No gaps" is the good outcome, not an error to show.
+
+- **`history` and `historyBuckets` are separate calls, not one with a flag.**
+  `--bucket` makes the CLI emit buckets — `{start,count,min,max,avg}` — which
+  cannot decode as readings. An optional argument that silently changes the
+  return shape is a decode failure waiting to happen.
+
+- **Sparklines load when the popover opens**, not on every poll. They cost no
+  API calls (local database only) but do spawn a process per series, and nobody
+  is looking while the popover is shut.
+
+- **The trend arrow describes the drawn line, not an absolute magnitude.** The
+  sparkline is autoscaled, so a monotonic climb is drawn as clearly rising
+  however small it is; an arrow saying "steady" beside it would contradict the
+  picture. `Sparkline.domain`'s floor on padding is what still makes sensor
+  wobble read as steady.
 
 ## Status
 
