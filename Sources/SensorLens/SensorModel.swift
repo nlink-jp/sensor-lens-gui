@@ -160,18 +160,24 @@ final class SensorModel: ObservableObject {
         }
     }
 
-    /// The worst CO2 level currently on the bar, which tints it.
-    var menuBarCO2Level: CO2Level? {
-        let levels = preferences.menuBarItems
-            .filter { $0.metric == "co2_ppm" }
-            .compactMap { item -> CO2Level? in
-                guard let r = readings.first(where: { $0.deviceID == item.deviceID }),
-                      let ppm = r.metrics["co2_ppm"], !r.stale else { return nil }
-                return CO2Level.of(ppm, warn: preferences.co2Warn, alert: preferences.co2Alert)
-            }
-        if levels.contains(.high) { return .high }
-        if levels.contains(.elevated) { return .elevated }
-        return levels.isEmpty ? nil : .ok
+    /// The worst CO2 anywhere in the house, whichever sensor it came from.
+    ///
+    /// Not restricted to the bar's own picks: there are three slots and a house
+    /// can hold more CO2 meters than that, and a room filling up is worth
+    /// showing whether or not that meter won a slot.
+    var worstCO2: CO2Reading? {
+        CO2Level.worst(readings, warn: preferences.co2Warn, alert: preferences.co2Alert)
+    }
+
+    /// The level the menu bar's glyph reflects.
+    var menuBarCO2Level: CO2Level? { worstCO2?.level }
+
+    /// True when the CO2 being warned about comes from a sensor that is not one
+    /// of the readings on display — in which case the glyph needs explaining.
+    var co2AlertIsOffscreen: Bool {
+        guard let worst = worstCO2, worst.level != .ok else { return false }
+        return !preferences.menuBarItems.contains(
+            MenuBarItem(deviceID: worst.deviceID, metric: "co2_ppm"))
     }
 
     var isCollecting: Bool { status?.collecting ?? false }

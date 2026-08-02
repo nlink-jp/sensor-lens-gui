@@ -70,3 +70,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The menu-bar readings can be dragged into order, and removed from the same
   list. Which one sits leftmost is the one seen without looking, so it should be
   a choice rather than an accident of the order they were ticked in.
+- The CO2 alert now considers every collected sensor rather than only the ones
+  chosen for the menu bar. With more meters than the bar has slots, a room
+  filling up was silent unless that meter happened to be on display and
+  notifications were switched on. The popover names the room when the warning
+  comes from a sensor that is not shown.

@@ -25,6 +25,22 @@ struct PopoverView: View {
                 ErrorBanner(message: error, detail: model.lastErrorDetail)
             }
 
+            // A CO2 warning coming from a sensor that is not on display would
+            // otherwise be a glyph on the menu bar with nothing here to explain
+            // it — and with several meters, "CO2 is high" without saying which
+            // room is not something anyone can act on.
+            if model.co2AlertIsOffscreen, let worst = model.worstCO2 {
+                HStack(spacing: 6) {
+                    Image(systemName: worst.level.symbol)
+                        .foregroundStyle(worst.level.color)
+                    Text("\(worst.name): \(Format.bare("co2_ppm", worst.ppm))")
+                        .font(.caption)
+                    Spacer()
+                }
+                .padding(8)
+                .background(worst.level.color.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+            }
+
             if selected.isEmpty {
                 EmptyStateView()
             } else {

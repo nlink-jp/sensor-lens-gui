@@ -102,6 +102,14 @@ Sources/SensorLens/
 - **Only CO2 is tinted.** Colouring every metric would make the colour mean
   nothing; CO2 is the one with a threshold worth acting on.
 
+- **The CO2 alert is over every collected sensor, not the bar's three picks.**
+  A house can hold more CO2 meters than the bar has slots, and a room filling up
+  is a fact about the house rather than a property of what won a slot.
+  `CO2Level.worst` is pure and carries the room's name — with several meters,
+  "CO2 is high" without saying where is not actionable. When the warning comes
+  from a sensor that is not on display, the popover names it, so the menu-bar
+  glyph is never unexplained.
+
 - Go marshals a nil slice as `null`, so `CLIRunner.decode` maps `null` to an
   empty list. "No gaps" is the good outcome, not an error to show.
 

@@ -112,4 +112,34 @@ enum CO2Level {
         case .high: return "aqi.high"
         }
     }
+
+    /// The worst CO2 reading anywhere, and which room it came from.
+    ///
+    /// Deliberately over *every* collected sensor, not just the ones chosen for
+    /// the menu bar. There are only three slots and a house can have more CO2
+    /// meters than that; a room filling up is a fact about the house, not a
+    /// property of what someone happened to put on the bar. Naming the room is
+    /// part of the same point — with several sensors, "CO2 is high" without
+    /// saying where is not actionable.
+    ///
+    /// Stale readings are skipped: a number from a meter that stopped reporting
+    /// hours ago says nothing about the air now.
+    static func worst(_ readings: [DeviceReading], warn: Double, alert: Double) -> CO2Reading? {
+        readings
+            .filter { !$0.stale }
+            .compactMap { r -> CO2Reading? in
+                guard let ppm = r.metrics["co2_ppm"] else { return nil }
+                return CO2Reading(deviceID: r.deviceID, name: r.name, ppm: ppm,
+                                  level: CO2Level.of(ppm, warn: warn, alert: alert))
+            }
+            .max { $0.ppm < $1.ppm }
+    }
+}
+
+/// One sensor's CO2, with the band it falls in.
+struct CO2Reading: Equatable {
+    let deviceID: String
+    let name: String
+    let ppm: Double
+    let level: CO2Level
 }
