@@ -15,6 +15,7 @@ final class SensorModel: ObservableObject {
     @Published private(set) var devices: [Device] = []
     @Published private(set) var status: Status?
     @Published private(set) var loginItem: LoginItem.State = .notEnabled
+    @Published private(set) var notificationAuth: Notifications.Authorization = .notDetermined
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isBusy = false
     @Published var lastError: String?
@@ -61,6 +62,16 @@ final class SensorModel: ObservableObject {
             reason: "collecting sensor readings")
 
         Task { await self.refresh(force: false) }
+        // Heal a switch that was turned on before the permission was ever
+        // asked for: it promised notifications that could not arrive, and left
+        // the app absent from System Settings so there was nothing to check.
+        Task {
+            let current = await Notifications.status()
+            self.notificationAuth = current
+            if self.preferences.notifyOnCO2, current == .notDetermined {
+                self.notificationAuth = await Notifications.request()
+            }
+        }
         scheduleTimer(seconds: 60)
     }
 
@@ -316,17 +327,32 @@ final class SensorModel: ObservableObject {
     }
 
     private func notify(title: String, body: String) {
-        // The centre is fetched again inside the callback rather than captured:
-        // UNUserNotificationCenter is not Sendable, and `current()` is the
-        // supported way to reach the same object from wherever the callback runs.
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { granted, _ in
-            guard granted else { return }
-            let content = UNMutableNotificationContent()
-            content.title = title
-            content.body = body
-            UNUserNotificationCenter.current().add(
-                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        Task { await Notifications.post(title: title, body: body) }
+    }
+
+    // MARK: - Notification permission
+
+    /// Ask when the user switches notifications on — the moment they said they
+    /// want them, and the moment the prompt makes sense. Asking only when a
+    /// room finally fills up left the app absent from System Settings, with
+    /// nothing to configure and no way to tell whether it would ever work.
+    func setNotifyOnCO2(_ on: Bool) async {
+        preferences.notifyOnCO2 = on
+        guard on else {
+            notificationAuth = await Notifications.status()
+            return
         }
+        notificationAuth = await Notifications.request()
+    }
+
+    func refreshNotificationAuth() async {
+        notificationAuth = await Notifications.status()
+    }
+
+    /// True when the switch is on but macOS will not deliver — a promise the
+    /// app cannot keep, and the user's to fix in System Settings.
+    var notificationsBlocked: Bool {
+        preferences.notifyOnCO2 && notificationAuth == .denied
     }
 
     // MARK: - Plumbing

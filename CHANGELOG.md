@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-03
+
+### Fixed
+
+- Notifications could never arrive, and SensorLens did not appear in System
+  Settings → Notifications at all. Permission was asked for at the moment an
+  alert fired, so until a room had actually filled up nothing had been
+  requested — leaving a switch that promised something the user could neither
+  verify nor configure. Permission is now requested when the switch is turned
+  on, which is also what puts the app in System Settings, and a switch left on
+  from before is healed at launch.
+- When macOS is refusing notifications, Settings says so and offers a way to
+  the pane that undoes it, instead of showing a switch that is on and silent.
+
 ## [0.1.1] - 2026-08-02
 
 ### Fixed
@@ -57,5 +71,6 @@ First release.
   resolution; the environment override is DEBUG-only. Installing the app is
   enough — there is no separate CLI to install.
 
+[0.1.2]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.0

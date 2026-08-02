@@ -20,6 +20,9 @@ struct SettingsView: View {
             }
         }
         .padding(12)
+        // The user can revoke notifications in System Settings at any time, so
+        // the state is re-read rather than remembered from when it was granted.
+        .task { await model.refreshNotificationAuth() }
     }
 }
 
@@ -306,10 +309,28 @@ struct CollectionSettings: View {
             Section("CO2 thresholds") {
                 Stepper("Elevated above \(Int(prefs.co2Warn)) ppm", value: $prefs.co2Warn, in: 400...5000, step: 100)
                 Stepper("High above \(Int(prefs.co2Alert)) ppm", value: $prefs.co2Alert, in: 400...5000, step: 100)
-                Toggle("Notify when a room goes above the high threshold", isOn: $prefs.notifyOnCO2)
-                Text("Notified once per room per crossing, not on every reading.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // Switching this on asks macOS for permission there and then,
+                // which is also what makes the app appear in System Settings →
+                // Notifications. Asking only when a room finally filled up left
+                // nothing to configure and no way to know it would work.
+                Toggle("Notify when a room goes above the high threshold", isOn: Binding(
+                    get: { prefs.notifyOnCO2 },
+                    set: { on in Task { await model.setNotifyOnCO2(on) } }
+                ))
+
+                if model.notificationsBlocked {
+                    HStack {
+                        Text("macOS is not allowing notifications from SensorLens, so this will not reach you.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Button("Open Notifications…") { Notifications.openSystemSettings() }
+                            .controlSize(.small)
+                    }
+                } else {
+                    Text("Notified once per room per crossing, not on every reading.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Warn me about") {
