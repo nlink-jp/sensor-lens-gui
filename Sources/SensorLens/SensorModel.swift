@@ -70,9 +70,17 @@ final class SensorModel: ObservableObject {
     /// launch, never more expensive.
     private func scheduleTimer(seconds: TimeInterval) {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: seconds, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh(force: false) }
         }
+        // Added to the *common* run-loop modes, not the default one.
+        //
+        // `Timer.scheduledTimer` registers for `.default` only, and while a menu
+        // or popover is being tracked the run loop leaves that mode — so the
+        // readings would freeze for exactly as long as the user held the panel
+        // open to look at them. Opening the thing must not stop it updating.
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
     }
 
     // MARK: - Collecting

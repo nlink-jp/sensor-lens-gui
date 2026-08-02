@@ -57,10 +57,19 @@ struct PopoverView: View {
         // so fixing the vertical size is what makes the window adopt the height
         // the rows actually want.
         .fixedSize(horizontal: false, vertical: true)
-        // Loaded when the popover opens, not on every poll: it costs no API
-        // calls but does spawn a process per series, and nobody is looking at
-        // the result while the popover is shut.
-        .task { await model.loadSparklines() }
+        // Reloaded for as long as the popover is on screen.
+        //
+        // Not on every poll, because the sparklines cost a process per series —
+        // no API calls, but no point paying it while nobody is looking. And not
+        // once on open either: a panel left open would keep showing the shape it
+        // had when it appeared while the number above it moved on. SwiftUI
+        // cancels this task when the view goes away, so the loop ends itself.
+        .task {
+            while !Task.isCancelled {
+                await model.loadSparklines()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
     }
 
     /// The menu-bar picks that have a reading to show, in the chosen order.
@@ -80,6 +89,13 @@ struct PopoverView: View {
             Text(model.collectorDescription)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+            // Evidence, not a claim: a panel left open should say when it last
+            // heard anything, so "is this still live?" is answerable by looking.
+            if let updated = model.lastUpdated {
+                Text("· \(Format.age(Date().timeIntervalSince(updated)))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if model.isBusy {
                 ProgressView().controlSize(.small)

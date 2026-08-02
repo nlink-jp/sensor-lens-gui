@@ -62,6 +62,16 @@ Sources/SensorLens/
   `.userInitiatedAllowingIdleSystemSleep` suppresses App Nap while still letting
   the machine sleep normally.
 
+- **The refresh timer runs in `.common` run-loop modes.**
+  `Timer.scheduledTimer` registers for `.default` only, and the run loop leaves
+  that mode while a menu or popover is being tracked — so the readings would
+  freeze for exactly as long as the user held the panel open to look at them.
+
+- **The popover reloads its sparklines in a loop, not once on appear.** A panel
+  left open would otherwise keep the shape it had when it opened while the
+  number above it moved on. `.task` is cancelled when the view goes away, so the
+  loop ends itself and nothing polls in the background.
+
 - **The login-item switch is read from the system, never remembered.** The user
   can add or remove it in System Settings, and a switch disagreeing with the
   system is worse than no switch. `requiresApproval` is its own state for the

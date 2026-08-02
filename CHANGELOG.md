@@ -52,3 +52,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   runs, starting it at login is what keeps the history from having a hole after
   every restart. The switch reads the system's own state rather than
   remembering its own, and says so when macOS is waiting for approval.
+
+### Fixed (continued)
+
+- Readings froze while the popover was open. The refresh timer was registered
+  only for the default run-loop mode, which the run loop leaves while a panel is
+  being tracked — so the display stopped updating for exactly as long as the
+  user held it open to watch it.
+- Sparklines in an open popover kept the shape they had when it appeared while
+  the current value above them moved on; they now reload while it is on screen.
+- The popover header shows how long ago the last reading arrived, so "is this
+  still live?" is answerable by looking rather than by trusting.
