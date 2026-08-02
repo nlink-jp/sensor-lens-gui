@@ -88,6 +88,33 @@ struct CollectionSettings: View {
             Section("Collecting") {
                 LabeledContent("Right now", value: model.collectorDescription)
 
+                Toggle("Open SensorLens at login", isOn: Binding(
+                    get: { model.loginItem == .enabled || model.loginItem == .requiresApproval },
+                    set: { on in model.setLaunchAtLogin(on) }
+                ))
+                .disabled(model.loginItem == .unavailable)
+
+                switch model.loginItem {
+                case .requiresApproval:
+                    // The switch is on but nothing will happen at login until
+                    // the user allows it, so saying only "on" would be a lie.
+                    HStack {
+                        Text("macOS is waiting for you to allow this.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Button("Open Login Items…") { LoginItem.openSystemSettings() }
+                            .controlSize(.small)
+                    }
+                case .unavailable:
+                    Text("macOS will not register this copy — move SensorLens into your Applications folder and try again.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                case .enabled, .disabled:
+                    Text("Because this app collects while it runs, opening it at login is what keeps the history from having a hole every time the Mac restarts.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Toggle("Keep collecting when this app is closed", isOn: Binding(
                     get: { model.isDaemonInstalled },
                     set: { on in Task { await model.setBackgroundCollection(on) } }

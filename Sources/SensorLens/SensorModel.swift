@@ -14,6 +14,7 @@ final class SensorModel: ObservableObject {
     @Published private(set) var readings: [DeviceReading] = []
     @Published private(set) var devices: [Device] = []
     @Published private(set) var status: Status?
+    @Published private(set) var loginItem: LoginItem.State = .disabled
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isBusy = false
     @Published var lastError: String?
@@ -100,6 +101,10 @@ final class SensorModel: ObservableObject {
             preferences.seedIfEmpty(from: fresh)
             preferences.prune(toCollected: devices)
             checkCO2(fresh)
+            // Read rather than remembered: the user can add or remove the login
+            // item in System Settings, and a switch that disagrees with the
+            // system is worse than no switch.
+            refreshLoginItem()
         } catch {
             report(error)
         }
@@ -172,6 +177,27 @@ final class SensorModel: ObservableObject {
         return "nothing is collecting"
     }
 
+    // MARK: - Launch at login
+
+    /// Register or unregister the app as a login item.
+    ///
+    /// With this on and the daemon off, collection covers the whole time the
+    /// user is logged in — which for most people is most of the time the room
+    /// is worth measuring, at a fraction of a daemon's API spend.
+    func setLaunchAtLogin(_ on: Bool) {
+        do {
+            try LoginItem.setEnabled(on)
+        } catch {
+            lastError = on
+                ? "macOS refused to add SensorLens to your login items."
+                : "macOS refused to remove SensorLens from your login items."
+            lastErrorDetail = error.localizedDescription
+        }
+        refreshLoginItem()
+    }
+
+    func refreshLoginItem() { loginItem = LoginItem.current }
+
     // MARK: - Background collection toggle
 
     var isDaemonInstalled: Bool { status?.daemonInstalled ?? false }
@@ -239,13 +265,16 @@ final class SensorModel: ObservableObject {
     }
 
     private func notify(title: String, body: String) {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert]) { granted, _ in
+        // The centre is fetched again inside the callback rather than captured:
+        // UNUserNotificationCenter is not Sendable, and `current()` is the
+        // supported way to reach the same object from wherever the callback runs.
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { granted, _ in
             guard granted else { return }
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
-            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+            UNUserNotificationCenter.current().add(
+                UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         }
     }
 

@@ -34,6 +34,13 @@ struct PopoverView: View {
                                      series: model.sparklines[pair.item.id] ?? [])
                     }
                 }
+                // Said once for the whole popover rather than under each chart:
+                // every row covers the same window, so repeating it three times
+                // adds clutter and no information.
+                Text("Last 6 hours · History… for longer")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
 
             Divider()
@@ -41,6 +48,15 @@ struct PopoverView: View {
         }
         .padding(12)
         .frame(width: 340)
+        // Take the ideal height rather than whatever the window offers.
+        //
+        // A MenuBarExtra window does not simply grow to fit: it hands the
+        // content a height, and a VStack asked for less than it needs compresses
+        // its children until they overlap — rows on top of each other, chart
+        // fills bleeding across neighbours. Nothing in here is meant to stretch,
+        // so fixing the vertical size is what makes the window adopt the height
+        // the rows actually want.
+        .fixedSize(horizontal: false, vertical: true)
         // Loaded when the popover opens, not on every poll: it costs no API
         // calls but does spawn a process per series, and nobody is looking at
         // the result while the popover is shut.
@@ -106,16 +122,16 @@ struct SparklineRow: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(reading.name)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(Format.label(item.metric))
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
                 if let trend {
                     Image(systemName: trend.symbol)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.secondary)
                         .help(trend.help)
                 }
@@ -128,22 +144,17 @@ struct SparklineRow: View {
 
             if series.count >= 2 {
                 chart
-                HStack {
-                    Text(Format.bare(item.metric, low))
-                    Spacer()
-                    Text("last 6h")
-                    Spacer()
-                    Text(Format.bare(item.metric, high))
-                }
-                .font(.system(size: 8))
-                .foregroundStyle(.tertiary)
+                range
             } else {
                 Text("Not enough history yet")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.tertiary)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
                     .frame(height: 20)
             }
         }
+        // Each row holds its own height too, so one row being squeezed cannot
+        // push its chart over its neighbour.
+        .fixedSize(horizontal: false, vertical: true)
         .padding(8)
         .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
     }
@@ -158,13 +169,44 @@ struct SparklineRow: View {
                 .foregroundStyle(lineColor)
                 .interpolationMethod(.monotone)
         }
-        // A sparkline is a shape, not a reading: the axes would only take room
-        // from it, and the exact numbers sit above and below it already.
+        // Both axes hidden, and the numbers named underneath instead.
+        //
+        // The values were once bare captions at the chart's bottom corners,
+        // which put two *values* where a reader expects the two *ends of the
+        // time range*. Writing "min" and "max" fixes that at the source: the
+        // words carry the meaning, so the position no longer has to, and the
+        // sparkline keeps its full width instead of giving some up to an axis.
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartYScale(domain: domain)
-        .frame(height: 34)
+        .frame(height: Self.chartHeight)
+        // Belt and braces: a gradient area fill will happily paint outside its
+        // frame if the layout ever squeezes it, and one row's fill spilling over
+        // the next is a far uglier failure than a clipped curve.
+        .clipped()
     }
+
+    /// The window's low and high, named rather than positioned.
+    private var range: some View {
+        HStack(spacing: 10) {
+            rangeLabel("min", low)
+            rangeLabel("max", high)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func rangeLabel(_ name: String, _ value: Double) -> some View {
+        HStack(spacing: 3) {
+            Text(name)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            Text(Format.bare(item.metric, value))
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    static let chartHeight: CGFloat = 36
 
     private var values: [Double] { series.map(\.avg) }
     private var domain: ClosedRange<Double> { Sparkline.domain(values) }

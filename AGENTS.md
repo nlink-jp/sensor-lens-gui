@@ -28,6 +28,7 @@ Sources/SensorLens/
   CLIRunner.swift     binary resolution, process invocation, typed queries
   SensorModel.swift   @MainActor ObservableObject: the tick, state, CO2 alerts
   Preferences.swift   menu-bar selection and thresholds (UserDefaults)
+  LoginItem.swift     SMAppService registration, with a PURE status mapping
   Formatting.swift    PURE value rendering, mirroring the CLI's cmd/format.go
   Sparkline.swift     PURE y-domain and trend arithmetic for the popover charts
   PopoverView.swift   the menu-bar picks with sparklines; SparklineRow, EmptyStateView
@@ -54,9 +55,18 @@ Sources/SensorLens/
   problem it removes.
 
 - **App Nap must stay opted out.** `SensorModel.start` holds a
-  `beginActivity` token for the app's lifetime. Without it macOS freezes the
+  `beginActivity` token for the app's lifetime (an instance property on the
+  `@StateObject` — releasing it re-arms App Nap). Without it macOS freezes the
   timer of a windowless `LSUIElement` app — `claude-usage-lens-gui` shipped that
   bug, and here it would stop collection dead, not merely stale the display.
+  `.userInitiatedAllowingIdleSystemSleep` suppresses App Nap while still letting
+  the machine sleep normally.
+
+- **The login-item switch is read from the system, never remembered.** The user
+  can add or remove it in System Settings, and a switch disagreeing with the
+  system is worse than no switch. `requiresApproval` is its own state for the
+  same reason: showing it as plain "on" would promise something that does not
+  happen at login.
 
 - **Settings is a `Window`, not a `Settings` scene.** An `LSUIElement` app cannot
   bring a `Settings` scene to the front, so its fields never take focus. Windows

@@ -48,3 +48,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   collected device. Collecting a whole house is what makes the history
   complete, but reading fifteen cards is not what anyone wants from a menu-bar
   click; every collected sensor stays available in the History window.
+- "Open SensorLens at login" (SMAppService). Because the app collects while it
+  runs, starting it at login is what keeps the history from having a hole after
+  every restart. The switch reads the system's own state rather than
+  remembering its own, and says so when macOS is waiting for approval.

@@ -45,6 +45,10 @@ which polls only when the stored readings have aged past the interval. That
 halves the API spend against a daemon running around the clock, because it only
 collects while you are actually at the machine.
 
+**Collection → Open SensorLens at login** is worth turning on for the same
+reason: while the app runs it *is* the collector, so starting it at login is
+what keeps the history from having a hole after every restart.
+
 **Collection → Keep collecting when this app is closed** installs the background
 daemon instead. With it on, the app's own tick finds fresh data and costs
 nothing, so the two never double-spend and there is nothing to keep in sync.
