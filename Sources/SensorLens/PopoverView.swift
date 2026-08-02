@@ -40,7 +40,16 @@ struct PopoverView: View {
                     }
                     .padding(.trailing, 2)
                 }
-                .frame(maxHeight: 420)
+                // An explicit height, not just a maximum.
+                //
+                // A ScrollView is infinitely flexible, so its *ideal* height is
+                // zero — and a MenuBarExtra window sizes itself to its content's
+                // ideal size. With only `maxHeight` the whole list collapsed to
+                // nothing and the popover showed a header sitting directly on a
+                // footer. `PopoverLayout.contentHeight` estimates from the row
+                // counts so a short list does not leave a pane of empty space.
+                .frame(height: PopoverLayout.contentHeight(
+                    sparklines: sparklineCount, devices: model.readings.count))
             }
 
             Divider()
@@ -52,6 +61,13 @@ struct PopoverView: View {
         // calls but does spawn a process per series, and nobody is looking at
         // the result while the popover is shut.
         .task { await model.loadSparklines() }
+    }
+
+    /// Menu-bar picks that actually have a reading to draw.
+    private var sparklineCount: Int {
+        prefs.menuBarItems.filter { item in
+            model.readings.contains { $0.deviceID == item.deviceID }
+        }.count
     }
 
     private var header: some View {

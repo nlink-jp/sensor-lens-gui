@@ -129,3 +129,19 @@ did not work", while the settings checkbox (observing `Preferences` through
 
 Any new view outside the popover's environment that renders a preference must
 observe `Preferences` explicitly.
+
+## MenuBarExtra sizes to its content — so ScrollView collapses
+
+A `ScrollView` is infinitely flexible, so its **ideal** height is zero, and a
+`MenuBarExtra(style: .window)` sizes itself to its content's ideal size. The
+popover therefore rendered as a header sitting directly on a footer, with the
+entire device list missing. `.frame(maxHeight:)` does not help: it caps a height
+nothing ever requested.
+
+`PopoverLayout.contentHeight` estimates a real height from the row counts, and
+`PopoverLayoutTests.testNeverCollapses` guards it. The estimate need not be
+exact — the view scrolls — only close enough that a short list is not trailed by
+empty space and a long one does not run off the screen.
+
+The same applies to any greedy view (`Spacer`, `GeometryReader`, `List`) placed
+in a menu-bar window: give it a definite height or it contributes nothing.
