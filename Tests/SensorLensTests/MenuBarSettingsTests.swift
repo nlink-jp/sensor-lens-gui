@@ -42,7 +42,7 @@ final class MenuBarSettingsTests: XCTestCase {
         let suite = UserDefaults(suiteName: "sensor-lens-tests-\(UUID().uuidString)")!
         let prefs = Preferences(defaults: suite)
 
-        prefs.toggleMenuBar(MenuBarItem(deviceID: "AAA", metric: "temperature_c"))
+        prefs.add(MenuBarItem(deviceID: "AAA", metric: "temperature_c"))
 
         XCTAssertTrue(prefs.isOnMenuBar(MenuBarItem(deviceID: "AAA", metric: "temperature_c")))
         XCTAssertFalse(prefs.isOnMenuBar(MenuBarItem(deviceID: "BBB", metric: "temperature_c")))

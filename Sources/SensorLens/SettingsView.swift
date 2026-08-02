@@ -16,69 +16,166 @@ struct SettingsView: View {
 
 /// Choosing what appears on the bar — a different, smaller choice than what is
 /// collected, made per device × metric so one sensor can contribute only its CO2.
+///
+/// Two lists rather than one: what is shown, in the order it is shown, and what
+/// can be added. A single list of toggles made the order invisible and left the
+/// reader working out which of thirty rows were the chosen three.
 struct MenuBarSettings: View {
     @EnvironmentObject private var model: SensorModel
     @EnvironmentObject private var prefs: Preferences
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Pick up to \(Preferences.maxMenuBarItems) readings for the menu bar. Everything collected stays visible in the popover.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
+        VStack(alignment: .leading, spacing: 6) {
             if model.readings.isEmpty {
                 ContentUnavailableView("Nothing collected yet", systemImage: "sensor")
             } else {
-                List {
-                    if !prefs.menuBarItems.isEmpty {
-                        Section("On the menu bar — drag to reorder") {
-                            ForEach(prefs.menuBarItems) { item in
-                                chosenRow(item)
-                            }
-                            .onMove { prefs.moveMenuBarItems(from: $0, to: $1) }
-                        }
-                    }
-
-                    ForEach(model.readings) { reading in
-                        Section(reading.name) {
-                            // Identified by device+metric, never by the metric
-                            // name alone. A List's ForEach ids must be unique
-                            // across the whole list, not within a section, and
-                            // "temperature_c" appears under every sensor — so
-                            // id: \.self made SwiftUI treat every device's
-                            // temperature row as the same row, and checking one
-                            // checked them all.
-                            ForEach(MenuBarSettings.rows(for: reading)) { item in
-                                row(reading: reading, item: item)
-                            }
-                        }
-                    }
-                }
-                .listStyle(.inset)
+                shownSection
+                Divider().padding(.vertical, 2)
+                availableSection
             }
         }
     }
 
-    /// One chosen reading, in the order it appears on the bar.
-    private func chosenRow(_ item: MenuBarItem) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.tertiary)
-                .help("Drag to reorder")
+    // MARK: - Shown
+
+    private var shownSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("On the menu bar")
+                    .font(.headline)
+                Text("\(prefs.menuBarItems.count) of \(Preferences.maxMenuBarItems)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("left to right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if prefs.menuBarItems.isEmpty {
+                Text("Nothing chosen — add a reading below.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+            } else {
+                List {
+                    ForEach(prefs.menuBarItems) { item in
+                        shownRow(item)
+                    }
+                    .onMove { prefs.moveMenuBarItems(from: $0, to: $1) }
+                }
+                .listStyle(.inset)
+                // Sized for the most it can ever hold, so the list below does
+                // not jump up and down as readings are added and removed.
+                .frame(height: CGFloat(Preferences.maxMenuBarItems) * 28 + 14)
+            }
+        }
+    }
+
+    private func shownRow(_ item: MenuBarItem) -> some View {
+        let index = prefs.menuBarItems.firstIndex(of: item) ?? 0
+        return HStack(spacing: 6) {
+            Text("\(index + 1).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(width: 16, alignment: .trailing)
+
             Text(deviceName(for: item))
                 .lineLimit(1)
             Text(Format.label(item.metric))
                 .foregroundStyle(.secondary)
-            Spacer()
-            Button {
-                prefs.toggleMenuBar(item)
-            } label: {
-                Image(systemName: "minus.circle")
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            // Buttons rather than drag alone: dragging inside a three-row list
+            // is fiddly, and nothing on screen says it is possible.
+            Button { prefs.moveMenuBarItem(item, by: -1) } label: {
+                Image(systemName: "chevron.up")
+            }
+            .buttonStyle(.borderless)
+            .disabled(index == 0)
+            .help("Move left")
+
+            Button { prefs.moveMenuBarItem(item, by: 1) } label: {
+                Image(systemName: "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .disabled(index == prefs.menuBarItems.count - 1)
+            .help("Move right")
+
+            Button { prefs.remove(item) } label: {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
             .help("Remove from the menu bar")
         }
     }
+
+    // MARK: - Available
+
+    private var availableSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Available readings")
+                    .font(.headline)
+                Spacer()
+                if prefs.isMenuBarFull {
+                    Text("the menu bar is full — remove one first")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            List {
+                ForEach(model.readings) { reading in
+                    Section(reading.name) {
+                        // Identified by device+metric, never by the metric name
+                        // alone. A List's ForEach ids must be unique across the
+                        // whole list, not within a section, and "temperature_c"
+                        // appears under every sensor — so id: \.self made
+                        // SwiftUI treat every device's temperature row as the
+                        // same row, and acting on one acted on them all.
+                        ForEach(MenuBarSettings.rows(for: reading)) { item in
+                            availableRow(reading: reading, item: item)
+                        }
+                    }
+                }
+            }
+            .listStyle(.inset)
+        }
+    }
+
+    private func availableRow(reading: DeviceReading, item: MenuBarItem) -> some View {
+        let shown = prefs.isOnMenuBar(item)
+        return HStack(spacing: 6) {
+            Text(Format.label(item.metric))
+                .foregroundStyle(shown ? .secondary : .primary)
+            Spacer()
+            if let v = reading.metrics[item.metric] {
+                Text(Format.bare(item.metric, v))
+                    .foregroundStyle(.secondary)
+            }
+            if shown {
+                // Says why the + is gone, instead of leaving a row that simply
+                // refuses to respond.
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.secondary)
+                    .help("Already on the menu bar")
+            } else {
+                Button { prefs.add(item) } label: {
+                    Image(systemName: "plus.circle.fill")
+                }
+                .buttonStyle(.borderless)
+                .disabled(prefs.isMenuBarFull)
+                .help(prefs.isMenuBarFull ? "The menu bar is full" : "Add to the menu bar")
+            }
+        }
+    }
+
+    // MARK: - Helpers
 
     /// The device's name, falling back to its ID. A chosen item can outlive the
     /// reading it came from — a meter offline since launch — and a row that
@@ -94,27 +191,6 @@ struct MenuBarSettings: View {
     static func rows(for reading: DeviceReading) -> [MenuBarItem] {
         Format.sortMetrics(Array(reading.metrics.keys))
             .map { MenuBarItem(deviceID: reading.deviceID, metric: $0) }
-    }
-
-    private func row(reading: DeviceReading, item: MenuBarItem) -> some View {
-        // Read through the binding rather than capturing a snapshot, so the
-        // toggle reflects the store rather than whatever was true when this
-        // view was last built.
-        let binding = Binding(
-            get: { prefs.isOnMenuBar(item) },
-            set: { _ in prefs.toggleMenuBar(item) }
-        )
-        return Toggle(isOn: binding) {
-            HStack {
-                Text(Format.label(item.metric))
-                Spacer()
-                if let v = reading.metrics[item.metric] {
-                    Text(Format.bare(item.metric, v)).foregroundStyle(.secondary)
-                }
-            }
-        }
-        // Full is a limit, not a failure: the already-chosen items stay toggleable.
-        .disabled(!prefs.isOnMenuBar(item) && prefs.isMenuBarFull)
     }
 }
 

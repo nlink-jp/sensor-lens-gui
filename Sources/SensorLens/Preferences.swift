@@ -45,15 +45,6 @@ final class Preferences: ObservableObject {
 
     func isOnMenuBar(_ item: MenuBarItem) -> Bool { menuBarItems.contains(item) }
 
-    /// Toggle an item, keeping the list within what the bar can show.
-    func toggleMenuBar(_ item: MenuBarItem) {
-        if let i = menuBarItems.firstIndex(of: item) {
-            menuBarItems.remove(at: i)
-        } else if menuBarItems.count < Self.maxMenuBarItems {
-            menuBarItems.append(item)
-        }
-    }
-
     var isMenuBarFull: Bool { menuBarItems.count >= Self.maxMenuBarItems }
 
     /// Reorder the bar. The list is ordered, not a set: which reading sits
@@ -61,6 +52,24 @@ final class Preferences: ObservableObject {
     /// and not an accident of the sequence they happened to be ticked in.
     func moveMenuBarItems(from source: IndexSet, to destination: Int) {
         menuBarItems.move(fromOffsets: source, toOffset: destination)
+    }
+
+    /// Move one item one place left or right. Dragging inside a three-row list
+    /// is fiddly and undiscoverable; a pair of buttons is neither.
+    func moveMenuBarItem(_ item: MenuBarItem, by offset: Int) {
+        guard let from = menuBarItems.firstIndex(of: item) else { return }
+        let to = from + offset
+        guard menuBarItems.indices.contains(to) else { return }
+        menuBarItems.swapAt(from, to)
+    }
+
+    func add(_ item: MenuBarItem) {
+        guard !isOnMenuBar(item), !isMenuBarFull else { return }
+        menuBarItems.append(item)
+    }
+
+    func remove(_ item: MenuBarItem) {
+        menuBarItems.removeAll { $0 == item }
     }
 
     /// Seed a sensible bar for a first run: the CO2 reading if there is one,
