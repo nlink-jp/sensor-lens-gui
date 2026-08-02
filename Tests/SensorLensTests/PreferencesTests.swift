@@ -43,6 +43,32 @@ final class PreferencesTests: XCTestCase {
         XCTAssertFalse(prefs.isOnMenuBar(MenuBarItem(deviceID: "AAA", metric: "temperature_c")))
     }
 
+    /// Which reading sits leftmost is the one seen without looking, so the order
+    /// is a real choice — not an accident of the sequence they were ticked in.
+    func testReorder() {
+        let prefs = makePrefs()
+        let a = MenuBarItem(deviceID: "A", metric: "temperature_c")
+        let b = MenuBarItem(deviceID: "B", metric: "co2_ppm")
+        let c = MenuBarItem(deviceID: "C", metric: "humidity_pct")
+        [a, b, c].forEach(prefs.toggleMenuBar)
+
+        prefs.moveMenuBarItems(from: IndexSet(integer: 2), to: 0)
+
+        XCTAssertEqual(prefs.menuBarItems, [c, a, b])
+    }
+
+    func testReorderPersists() {
+        let suite = UserDefaults(suiteName: "sensor-lens-tests-\(UUID().uuidString)")!
+        let first = Preferences(defaults: suite)
+        let a = MenuBarItem(deviceID: "A", metric: "temperature_c")
+        let b = MenuBarItem(deviceID: "B", metric: "co2_ppm")
+        [a, b].forEach(first.toggleMenuBar)
+
+        first.moveMenuBarItems(from: IndexSet(integer: 1), to: 0)
+
+        XCTAssertEqual(Preferences(defaults: suite).menuBarItems, [b, a])
+    }
+
     func testPersistsAcrossInstances() {
         let suite = UserDefaults(suiteName: "sensor-lens-tests-\(UUID().uuidString)")!
         let first = Preferences(defaults: suite)

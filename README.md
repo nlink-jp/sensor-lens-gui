@@ -29,7 +29,8 @@ then use **Refresh**. Everything else is discovered from your account.
 
 The **menu bar** shows up to three readings you pick, per *device × metric* — so
 one sensor can contribute only its CO2 while another contributes only its
-temperature. Clicking it opens those same readings with the **last six hours**
+temperature. Drag them into the order you want them read in; the leftmost is the
+one you see without looking. Clicking it opens those same readings with the **last six hours**
 behind each one, and a trend arrow.
 
 What is *collected* is a separate, wider choice, and it belongs to the CLI's

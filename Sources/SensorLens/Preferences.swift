@@ -56,6 +56,13 @@ final class Preferences: ObservableObject {
 
     var isMenuBarFull: Bool { menuBarItems.count >= Self.maxMenuBarItems }
 
+    /// Reorder the bar. The list is ordered, not a set: which reading sits
+    /// leftmost is the one seen without looking, so the order is a real choice
+    /// and not an accident of the sequence they happened to be ticked in.
+    func moveMenuBarItems(from source: IndexSet, to destination: Int) {
+        menuBarItems.move(fromOffsets: source, toOffset: destination)
+    }
+
     /// Seed a sensible bar for a first run: the CO2 reading if there is one,
     /// otherwise the first device's temperature. An empty menu bar makes the app
     /// look broken, and picking for the user is easily undone.

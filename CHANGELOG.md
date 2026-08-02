@@ -67,3 +67,6 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   time, and SwiftUI only redraws when an observed value changes — so it showed a
   frozen clock, the exact impression it was added to dispel. A TimelineView now
   ticks it every second.
+- The menu-bar readings can be dragged into order, and removed from the same
+  list. Which one sits leftmost is the one seen without looking, so it should be
+  a choice rather than an accident of the order they were ticked in.

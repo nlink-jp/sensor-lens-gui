@@ -30,6 +30,15 @@ struct MenuBarSettings: View {
                 ContentUnavailableView("Nothing collected yet", systemImage: "sensor")
             } else {
                 List {
+                    if !prefs.menuBarItems.isEmpty {
+                        Section("On the menu bar — drag to reorder") {
+                            ForEach(prefs.menuBarItems) { item in
+                                chosenRow(item)
+                            }
+                            .onMove { prefs.moveMenuBarItems(from: $0, to: $1) }
+                        }
+                    }
+
                     ForEach(model.readings) { reading in
                         Section(reading.name) {
                             // Identified by device+metric, never by the metric
@@ -48,6 +57,36 @@ struct MenuBarSettings: View {
                 .listStyle(.inset)
             }
         }
+    }
+
+    /// One chosen reading, in the order it appears on the bar.
+    private func chosenRow(_ item: MenuBarItem) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .help("Drag to reorder")
+            Text(deviceName(for: item))
+                .lineLimit(1)
+            Text(Format.label(item.metric))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                prefs.toggleMenuBar(item)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .help("Remove from the menu bar")
+        }
+    }
+
+    /// The device's name, falling back to its ID. A chosen item can outlive the
+    /// reading it came from — a meter offline since launch — and a row that
+    /// vanished would look like the setting had been lost.
+    private func deviceName(for item: MenuBarItem) -> String {
+        if let r = model.readings.first(where: { $0.deviceID == item.deviceID }) { return r.name }
+        if let d = model.devices.first(where: { $0.deviceID == item.deviceID }) { return d.name }
+        return item.deviceID
     }
 
     /// The selectable rows for one device, in reading order. Pure, so the
