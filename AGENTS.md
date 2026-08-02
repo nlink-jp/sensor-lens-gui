@@ -82,7 +82,7 @@ Sources/SensorLens/
 ## Status
 
 Implemented and running: menu bar, popover, history with gaps, settings.
-`swift test` green (27 tests). Verified live against 30 real devices, collecting
+`swift test` green (31 tests). Verified live against 30 real devices, collecting
 alongside the daemon without double-spending the API budget.
 
 Not yet done: notarized release, submodule registration, org profile entry.
