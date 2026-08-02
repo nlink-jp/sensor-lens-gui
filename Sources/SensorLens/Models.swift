@@ -59,6 +59,12 @@ struct Status: Codable {
     let daemonKind: String?
     let daemonLoaded: Bool
     let daemonInstalled: Bool
+    /// The binary the daemon was installed to run, and whether it is still
+    /// there. launchd records an absolute path, so a daemon installed from an
+    /// app that later moved keeps failing quietly with a perfectly healthy
+    /// looking plist.
+    let daemonProgram: String?
+    let daemonProgramMissing: Bool?
     let intervalSeconds: Int
     let devices: Int
     let collected: Int
@@ -81,6 +87,8 @@ struct Status: Codable {
         case daemonKind = "daemon_kind"
         case daemonLoaded = "daemon_loaded"
         case daemonInstalled = "daemon_installed"
+        case daemonProgram = "daemon_program"
+        case daemonProgramMissing = "daemon_program_missing"
         case intervalSeconds = "interval_seconds"
         case devices, collected, readings
         case lastReadingTS = "last_reading_ts"

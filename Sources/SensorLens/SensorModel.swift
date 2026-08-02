@@ -180,9 +180,20 @@ final class SensorModel: ObservableObject {
     /// while it is open and no daemon is loaded, its own tick is the collector.
     var collectorDescription: String {
         guard let status else { return "starting…" }
+        // Said first: a daemon pointing at a binary that no longer exists looks
+        // installed and healthy while collecting nothing at all.
+        if status.daemonProgramMissing == true { return "background daemon is broken" }
         if status.daemonLoaded { return "background daemon" }
         if status.collecting { return "this app, while it is running" }
         return "nothing is collecting"
+    }
+
+    /// True when the installed daemon points at a binary that has gone.
+    var isDaemonBroken: Bool { status?.daemonProgramMissing == true }
+
+    /// Reinstall the daemon so it points at the binary running now.
+    func repairDaemon() async {
+        await setBackgroundCollection(true)
     }
 
     // MARK: - Launch at login

@@ -119,6 +119,18 @@ struct CollectionSettings: View {
                     get: { model.isDaemonInstalled },
                     set: { on in Task { await model.setBackgroundCollection(on) } }
                 ))
+                if model.isDaemonBroken {
+                    // The switch reads "on" and the plist looks healthy, but the
+                    // binary it names is gone — usually because this app was
+                    // moved or replaced since it was installed.
+                    HStack {
+                        Text("The background daemon points at a copy of SensorLens that no longer exists.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Button("Repair") { Task { await model.repairDaemon() } }
+                            .controlSize(.small)
+                    }
+                }
                 Text(model.isDaemonInstalled
                      ? "A background daemon collects around the clock. This app's own polling then costs nothing, because it only polls when the readings have gone stale."
                      : "Readings are collected only while this app is running. Whatever happens while it is closed cannot be recovered from the API — it can only be imported from a SwitchBot app export.")

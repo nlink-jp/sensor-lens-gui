@@ -168,3 +168,14 @@ The popover now shows only the menu-bar picks, which are capped at
 is structurally impossible rather than merely fixed. **Do not reintroduce one**
 without giving it a definite height. The same applies to any greedy view
 (`Spacer`, `GeometryReader`, `List`) placed in a menu-bar window.
+
+## The daemon records an absolute path
+
+`sensor-lens install` writes the running binary's path into the LaunchAgent. When
+the GUI installs it, that path points **inside the .app bundle** — which is what
+makes the app self-contained, and also what breaks if the app is later moved or
+replaced. launchd keeps such a job and fails quietly every time it fires, with a
+plist that looks perfectly healthy.
+
+`status --json` reports `daemon_program` and `daemon_program_missing`; the
+settings pane shows a Repair button that reinstalls against the current path.
