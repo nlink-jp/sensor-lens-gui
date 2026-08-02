@@ -115,6 +115,7 @@ struct PopoverView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .buttonStyle(.borderless)
+                .focusable(false)
                 .help("Read the sensors now")
             }
         }
@@ -124,11 +125,14 @@ struct PopoverView: View {
         HStack {
             Button("History…") { openAppWindow("analysis", using: openWindow) }
                 .buttonStyle(.borderless)
+                .focusable(false)
             Button("Settings…") { openAppWindow("settings", using: openWindow) }
                 .buttonStyle(.borderless)
+                .focusable(false)
             Spacer()
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .buttonStyle(.borderless)
+                .focusable(false)
         }
         .font(.caption)
     }
@@ -320,6 +324,7 @@ struct ErrorBanner: View {
                 if detail?.isEmpty == false {
                     Button(showDetail ? "Less" : "More") { showDetail.toggle() }
                         .buttonStyle(.borderless)
+                .focusable(false)
                         .font(.caption2)
                 }
             }

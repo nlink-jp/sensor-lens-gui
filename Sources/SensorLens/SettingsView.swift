@@ -101,6 +101,7 @@ struct MenuBarSettings: View {
                 Image(systemName: "chevron.up")
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .disabled(index == 0)
             .help("Move left")
 
@@ -108,6 +109,7 @@ struct MenuBarSettings: View {
                 Image(systemName: "chevron.down")
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .disabled(index == prefs.menuBarItems.count - 1)
             .help("Move right")
 
@@ -116,6 +118,7 @@ struct MenuBarSettings: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.borderless)
+            .focusable(false)
             .help("Remove from the menu bar")
         }
     }
@@ -185,6 +188,7 @@ struct MenuBarSettings: View {
                     Image(systemName: "plus.circle.fill")
                 }
                 .buttonStyle(.borderless)
+            .focusable(false)
                 .disabled(prefs.isMenuBarFull)
                 .help(prefs.isMenuBarFull ? "The menu bar is full" : "Add to the menu bar")
             }
