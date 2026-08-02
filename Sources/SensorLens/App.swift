@@ -11,7 +11,11 @@ struct SensorLensApp: App {
                 .environmentObject(model)
                 .environmentObject(model.preferences)
         } label: {
-            MenuBarLabel(model: model)
+            // Both objects, deliberately: the chips are values from the model
+            // rendered according to a selection held in preferences, and
+            // observing only one of the two leaves the bar stale after the
+            // other changes.
+            MenuBarLabel(model: model, prefs: model.preferences)
         }
         .menuBarExtraStyle(.window)
 
@@ -42,8 +46,14 @@ struct SensorLensApp: App {
 
 /// The bar itself: the chosen device × metric chips, tinted by the worst CO2
 /// level among them.
+///
+/// It observes `Preferences` as well as the model. The selection lives in a
+/// separate ObservableObject, so without this the bar would not re-render when
+/// the user changed it — the new chip would appear only at the next poll, a
+/// minute later, which reads as "selecting it did nothing".
 struct MenuBarLabel: View {
     @ObservedObject var model: SensorModel
+    @ObservedObject var prefs: Preferences
 
     var body: some View {
         let chips = model.menuBarChips

@@ -101,3 +101,15 @@ Row identity now carries the device (`MenuBarSettings.rows(for:)` returns
 
 Related: build a `Toggle`'s `Binding` to read the store in its getter rather
 than capturing a snapshot at view-build time.
+
+## Observation: the selection lives in a second ObservableObject
+
+`Preferences` is separate from `SensorModel`, so a view that observes only the
+model does **not** re-render when the selection changes. `MenuBarLabel` therefore
+takes both. Without that, choosing a new chip did nothing visible until the next
+60-second poll happened to invalidate the model — which reads as "selecting it
+did not work", while the settings checkbox (observing `Preferences` through
+`@EnvironmentObject`) updated instantly.
+
+Any new view outside the popover's environment that renders a preference must
+observe `Preferences` explicitly.
