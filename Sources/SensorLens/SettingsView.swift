@@ -59,18 +59,22 @@ struct MenuBarSettings: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 6)
             } else {
-                List {
+                // A plain stack, not a List. It holds at most
+                // `maxMenuBarItems` rows, so it never needs to scroll — and a
+                // List here has to be given a fixed height, which was smaller
+                // than the rows' real height and produced a second scrollbar
+                // for three rows that already fitted.
+                VStack(spacing: 0) {
                     ForEach(prefs.menuBarItems) { item in
+                        if item != prefs.menuBarItems.first {
+                            Divider()
+                        }
                         shownRow(item)
-                            .listRowInsets(Self.rowInsets)
+                            .padding(.vertical, 3)
+                            .padding(.horizontal, 8)
                     }
-                    .onMove { prefs.moveMenuBarItems(from: $0, to: $1) }
                 }
-                .listStyle(.inset)
-                .environment(\.defaultMinListRowHeight, Self.rowHeight)
-                // Sized for the most it can ever hold, so the list below does
-                // not jump up and down as readings are added and removed.
-                .frame(height: CGFloat(Preferences.maxMenuBarItems) * Self.rowHeight + 14)
+                .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 6))
             }
         }
     }

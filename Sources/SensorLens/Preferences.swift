@@ -47,13 +47,9 @@ final class Preferences: ObservableObject {
 
     var isMenuBarFull: Bool { menuBarItems.count >= Self.maxMenuBarItems }
 
-    /// Reorder the bar. The list is ordered, not a set: which reading sits
-    /// leftmost is the one seen without looking, so the order is a real choice
-    /// and not an accident of the sequence they happened to be ticked in.
-    func moveMenuBarItems(from source: IndexSet, to destination: Int) {
-        menuBarItems.move(fromOffsets: source, toOffset: destination)
-    }
-
+    /// The list is ordered, not a set: which reading sits leftmost is the one
+    /// seen without looking, so the order is a real choice and not an accident
+    /// of the sequence they happened to be added in.
     /// Move one item one place left or right. Dragging inside a three-row list
     /// is fiddly and undiscoverable; a pair of buttons is neither.
     func moveMenuBarItem(_ item: MenuBarItem, by offset: Int) {
