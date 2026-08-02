@@ -1,9 +1,17 @@
 import Charts
 import SwiftUI
 
-/// The popover shows **every collected device**, not just the ones on the bar.
-/// That is the whole point of the split: collect the house, put two numbers on
-/// the bar, and look here for the rest.
+/// The popover shows **what you put on the menu bar**, each with the last six
+/// hours behind it.
+///
+/// It deliberately does not list every collected device. Collecting a whole
+/// house is worth doing — it is what makes the history complete — but reading
+/// fifteen cards is not what someone wants from a menu-bar click. Everything
+/// else stays one click further away: any device in the History window, all of
+/// them with current values in Settings.
+///
+/// Bounded to `Preferences.maxMenuBarItems` rows, so there is no ScrollView and
+/// therefore no way for the content to collapse to nothing.
 struct PopoverView: View {
     @EnvironmentObject private var model: SensorModel
     @EnvironmentObject private var prefs: Preferences
@@ -17,39 +25,15 @@ struct PopoverView: View {
                 ErrorBanner(message: error, detail: model.lastErrorDetail)
             }
 
-            if model.readings.isEmpty {
+            if selected.isEmpty {
                 EmptyStateView()
             } else {
-                ScrollView {
-                    VStack(spacing: 8) {
-                        // What is on the bar, with the shape behind the number.
-                        ForEach(prefs.menuBarItems) { item in
-                            if let reading = model.readings.first(where: { $0.deviceID == item.deviceID }) {
-                                SparklineRow(item: item, reading: reading,
-                                             series: model.sparklines[item.id] ?? [])
-                            }
-                        }
-
-                        if !prefs.menuBarItems.isEmpty {
-                            Divider().padding(.vertical, 2)
-                        }
-
-                        ForEach(model.readings) { reading in
-                            DeviceCard(reading: reading)
-                        }
+                VStack(spacing: 8) {
+                    ForEach(selected, id: \.item.id) { pair in
+                        SparklineRow(item: pair.item, reading: pair.reading,
+                                     series: model.sparklines[pair.item.id] ?? [])
                     }
-                    .padding(.trailing, 2)
                 }
-                // An explicit height, not just a maximum.
-                //
-                // A ScrollView is infinitely flexible, so its *ideal* height is
-                // zero — and a MenuBarExtra window sizes itself to its content's
-                // ideal size. With only `maxHeight` the whole list collapsed to
-                // nothing and the popover showed a header sitting directly on a
-                // footer. `PopoverLayout.contentHeight` estimates from the row
-                // counts so a short list does not leave a pane of empty space.
-                .frame(height: PopoverLayout.contentHeight(
-                    sparklines: sparklineCount, devices: model.readings.count))
             }
 
             Divider()
@@ -63,11 +47,13 @@ struct PopoverView: View {
         .task { await model.loadSparklines() }
     }
 
-    /// Menu-bar picks that actually have a reading to draw.
-    private var sparklineCount: Int {
-        prefs.menuBarItems.filter { item in
-            model.readings.contains { $0.deviceID == item.deviceID }
-        }.count
+    /// The menu-bar picks that have a reading to show, in the chosen order.
+    private var selected: [(item: MenuBarItem, reading: DeviceReading)] {
+        prefs.menuBarItems.compactMap { item in
+            guard let reading = model.readings.first(where: { $0.deviceID == item.deviceID }),
+                  reading.metrics[item.metric] != nil else { return nil }
+            return (item, reading)
+        }
     }
 
     private var header: some View {
@@ -200,89 +186,55 @@ struct SparklineRow: View {
     private var trend: Sparkline.Trend? { Sparkline.trend(values) }
 }
 
-/// One device's current values.
-struct DeviceCard: View {
-    @EnvironmentObject private var prefs: Preferences
-    let reading: DeviceReading
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(reading.name)
-                    .font(.system(size: 12, weight: .medium))
-                    .lineLimit(1)
-                Spacer()
-                if reading.stale {
-                    Label(Format.age(Date().timeIntervalSince(reading.date)), systemImage: "exclamationmark.triangle")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .help("No fresh reading — the device or its hub may be offline")
-                }
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                ForEach(Format.sortMetrics(Array(reading.metrics.keys)), id: \.self) { metric in
-                    if let value = reading.metrics[metric] {
-                        MetricChip(metric: metric, value: value, stale: reading.stale)
-                    }
-                }
-            }
-        }
-        .padding(8)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 6))
-    }
-}
-
-struct MetricChip: View {
-    @EnvironmentObject private var prefs: Preferences
-    let metric: String
-    let value: Double
-    let stale: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(Format.bare(metric, value))
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(tint)
-            Text(Format.label(metric))
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-        }
-        .opacity(stale ? 0.5 : 1)
-    }
-
-    /// Only CO2 is tinted. Colouring everything would make the tint mean
-    /// nothing; CO2 is the reading with an actionable threshold.
-    private var tint: Color {
-        guard metric == "co2_ppm", !stale else { return .primary }
-        return CO2Level.of(value, warn: prefs.co2Warn, alert: prefs.co2Alert).color
-    }
-}
-
+/// Why the popover has nothing to show, and what to do about it. The three
+/// causes need three different answers, and "no readings" would be an unhelpful
+/// thing to say to someone who simply has not picked any yet.
 struct EmptyStateView: View {
     @EnvironmentObject private var model: SensorModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if model.status?.hasCredentials == false {
+            switch state {
+            case .noCredentials:
                 Text("No SwitchBot credentials yet.")
                     .font(.system(size: 12, weight: .medium))
                 Text("Open Settings and paste the token and secret from the SwitchBot app (Profile → Preferences → tap App Version ten times → Developer Options).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Button("Settings…") { openAppWindow("settings", using: openWindow) }
-                    .controlSize(.small)
-            } else {
+                settingsButton
+
+            case .noReadings:
                 Text("No readings yet.")
                     .font(.system(size: 12, weight: .medium))
                 Text("Nothing has been collected. Use Refresh above, or check that your sensors are reachable through a SwitchBot hub.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+            case .nothingChosen:
+                Text("Nothing chosen to show.")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Pick the readings you want here and on the menu bar — up to \(Preferences.maxMenuBarItems). Every collected sensor is available in the History window.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                settingsButton
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 8)
+    }
+
+    private var settingsButton: some View {
+        Button("Settings…") { openAppWindow("settings", using: openWindow) }
+            .controlSize(.small)
+    }
+
+    private enum State { case noCredentials, noReadings, nothingChosen }
+
+    private var state: State {
+        if model.status?.hasCredentials == false { return .noCredentials }
+        if model.readings.isEmpty { return .noReadings }
+        return .nothingChosen
     }
 }
 

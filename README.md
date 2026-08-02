@@ -29,11 +29,14 @@ then use **Refresh**. Everything else is discovered from your account.
 
 The **menu bar** shows up to three readings you pick, per *device × metric* — so
 one sensor can contribute only its CO2 while another contributes only its
-temperature. The **popover** shows every collected device, with its current
-values, a trend, battery, and a badge when a device has gone quiet.
+temperature. Clicking it opens those same readings with the **last six hours**
+behind each one, and a trend arrow.
 
 What is *collected* is a separate, wider choice, and it belongs to the CLI's
-`config.toml`. Collect eight sensors, put two on the bar.
+`config.toml`. Collect eight sensors, put two on the bar — collecting the house
+is what makes the history complete, but reading fifteen cards is not what anyone
+wants from a menu-bar click. Every collected sensor is a click further away, in
+the History window.
 
 ## Who does the collecting
 

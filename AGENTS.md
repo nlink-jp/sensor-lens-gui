@@ -30,7 +30,7 @@ Sources/SensorLens/
   Preferences.swift   menu-bar selection and thresholds (UserDefaults)
   Formatting.swift    PURE value rendering, mirroring the CLI's cmd/format.go
   Sparkline.swift     PURE y-domain and trend arithmetic for the popover charts
-  PopoverView.swift   menu-bar picks with sparklines, then all collected devices
+  PopoverView.swift   the menu-bar picks with sparklines; SparklineRow, EmptyStateView
   AnalysisView.swift  Swift Charts history with gaps drawn
   SettingsView.swift  menu-bar picks, collection, CO2 thresholds, about
 ```
@@ -135,13 +135,11 @@ observe `Preferences` explicitly.
 A `ScrollView` is infinitely flexible, so its **ideal** height is zero, and a
 `MenuBarExtra(style: .window)` sizes itself to its content's ideal size. The
 popover therefore rendered as a header sitting directly on a footer, with the
-entire device list missing. `.frame(maxHeight:)` does not help: it caps a height
+entire list missing. `.frame(maxHeight:)` does not help: it caps a height
 nothing ever requested.
 
-`PopoverLayout.contentHeight` estimates a real height from the row counts, and
-`PopoverLayoutTests.testNeverCollapses` guards it. The estimate need not be
-exact — the view scrolls — only close enough that a short list is not trailed by
-empty space and a long one does not run off the screen.
-
-The same applies to any greedy view (`Spacer`, `GeometryReader`, `List`) placed
-in a menu-bar window: give it a definite height or it contributes nothing.
+The popover now shows only the menu-bar picks, which are capped at
+`Preferences.maxMenuBarItems`, so there is no ScrollView at all and the failure
+is structurally impossible rather than merely fixed. **Do not reintroduce one**
+without giving it a definite height. The same applies to any greedy view
+(`Spacer`, `GeometryReader`, `List`) placed in a menu-bar window.

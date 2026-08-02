@@ -44,3 +44,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   while the settings checkbox had already ticked.
 - The settings list identified rows by metric name, so every device's
   temperature row shared one identity and ticking one appeared to tick them all.
+- The popover shows only the readings chosen for the menu bar, not every
+  collected device. Collecting a whole house is what makes the history
+  complete, but reading fifteen cards is not what anyone wants from a menu-bar
+  click; every collected sensor stays available in the History window.
