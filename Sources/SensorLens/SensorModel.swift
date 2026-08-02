@@ -14,7 +14,7 @@ final class SensorModel: ObservableObject {
     @Published private(set) var readings: [DeviceReading] = []
     @Published private(set) var devices: [Device] = []
     @Published private(set) var status: Status?
-    @Published private(set) var loginItem: LoginItem.State = .disabled
+    @Published private(set) var loginItem: LoginItem.State = .notEnabled
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isBusy = false
     @Published var lastError: String?
@@ -227,13 +227,24 @@ final class SensorModel: ObservableObject {
     func setLaunchAtLogin(_ on: Bool) {
         do {
             try LoginItem.setEnabled(on)
+            lastError = nil
+            lastErrorDetail = nil
         } catch {
             lastError = on
                 ? "macOS refused to add SensorLens to your login items."
                 : "macOS refused to remove SensorLens from your login items."
-            lastErrorDetail = error.localizedDescription
+            // The underlying error, verbatim. The wording above is a guess at
+            // what happened; this is what actually did.
+            lastErrorDetail = "\(error)\n\nBundle: \(Bundle.main.bundleURL.path)"
         }
         refreshLoginItem()
+
+        // A switch that springs back with nothing said is the worst outcome, so
+        // check that the state actually changed and say so when it did not.
+        if lastError == nil, on, loginItem == .notEnabled {
+            lastError = "macOS accepted the request but SensorLens is still not a login item."
+            lastErrorDetail = "Status: \(loginItem). Bundle: \(Bundle.main.bundleURL.path)"
+        }
     }
 
     func refreshLoginItem() { loginItem = LoginItem.current }

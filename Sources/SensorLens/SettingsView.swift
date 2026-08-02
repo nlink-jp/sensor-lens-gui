@@ -5,10 +5,19 @@ struct SettingsView: View {
     @EnvironmentObject private var prefs: Preferences
 
     var body: some View {
-        TabView {
-            MenuBarSettings().tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
-            CollectionSettings().tabItem { Label("Collection", systemImage: "antenna.radiowaves.left.and.right") }
-            AboutSettings().tabItem { Label("About", systemImage: "info.circle") }
+        VStack(spacing: 8) {
+            // Failures from actions taken *here* were only ever shown in the
+            // popover, so a switch that refused to move explained itself
+            // somewhere the user was not looking.
+            if let error = model.lastError {
+                ErrorBanner(message: error, detail: model.lastErrorDetail)
+            }
+
+            TabView {
+                MenuBarSettings().tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
+                CollectionSettings().tabItem { Label("Collection", systemImage: "antenna.radiowaves.left.and.right") }
+                AboutSettings().tabItem { Label("About", systemImage: "info.circle") }
+            }
         }
         .padding(12)
     }
@@ -231,11 +240,14 @@ struct CollectionSettings: View {
             Section("Collecting") {
                 LabeledContent("Right now", value: model.collectorDescription)
 
+                // Never disabled on the strength of the reported status. macOS
+                // says `.notFound` for an app that has simply never registered,
+                // which is every app the first time — gating the switch on it
+                // made the first attempt the one that could never be made.
                 Toggle("Open SensorLens at login", isOn: Binding(
                     get: { model.loginItem == .enabled || model.loginItem == .requiresApproval },
                     set: { on in model.setLaunchAtLogin(on) }
                 ))
-                .disabled(model.loginItem == .unavailable)
 
                 switch model.loginItem {
                 case .requiresApproval:
@@ -248,11 +260,7 @@ struct CollectionSettings: View {
                         Button("Open Login Items…") { LoginItem.openSystemSettings() }
                             .controlSize(.small)
                     }
-                case .unavailable:
-                    Text("macOS will not register this copy — move SensorLens into your Applications folder and try again.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                case .enabled, .disabled:
+                case .enabled, .notEnabled:
                     Text("Because this app collects while it runs, opening it at login is what keeps the history from having a hole every time the Mac restarts.")
                         .font(.caption)
                         .foregroundStyle(.secondary)

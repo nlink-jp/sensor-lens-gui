@@ -10,26 +10,32 @@ enum LoginItem {
     enum State: Equatable {
         /// Registered and starting at login.
         case enabled
-        /// Not registered.
-        case disabled
+        /// Not starting at login, as far as macOS will say.
+        case notEnabled
         /// Registered, but macOS wants the user to allow it in System Settings.
         /// The switch is on and nothing happens at login until they do, so this
         /// has to be said rather than shown as plain "on".
         case requiresApproval
-        /// The system will not register this bundle — most often because it is
-        /// running from somewhere temporary rather than /Applications.
-        case unavailable
     }
 
-    /// Pure mapping from the system's status, so the states the UI must handle
-    /// can be tested without touching the real login-item database.
+    /// Pure mapping from the system's status.
+    ///
+    /// `.notFound` collapses into `.notEnabled` rather than becoming a state of
+    /// its own. It reads like "this app cannot be registered", but macOS also
+    /// returns it for an app that has simply never been registered — which is
+    /// every app, the first time. Treating it as an impossibility, and
+    /// disabling the switch on the strength of it, made the very first attempt
+    /// the one that could never be made.
+    ///
+    /// The lesson generalises: a status that cannot tell "no" from "don't know"
+    /// must not be allowed to remove the control that would settle it. Offer the
+    /// action, and report what actually happened.
     static func state(from status: SMAppService.Status) -> State {
         switch status {
         case .enabled: return .enabled
-        case .notRegistered: return .disabled
         case .requiresApproval: return .requiresApproval
-        case .notFound: return .unavailable
-        @unknown default: return .unavailable
+        case .notRegistered, .notFound: return .notEnabled
+        @unknown default: return .notEnabled
         }
     }
 

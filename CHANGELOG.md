@@ -4,6 +4,21 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-08-02
+
+### Fixed
+
+- "Open SensorLens at login" could not be switched on. macOS reports
+  `.notFound` for an app that has simply never been registered — which is every
+  app, the first time — and the switch was disabled on the strength of it. The
+  one attempt that would have settled the question was the one the interface
+  refused to allow. A status that cannot tell "no" from "don't know" must not
+  remove the control that would resolve it, so the switch is always live now and
+  reports what actually happened.
+- Failures from actions taken in Settings were only ever shown in the popover,
+  so a switch that would not move explained itself somewhere the user was not
+  looking. Settings shows them, with the underlying error verbatim.
+
 ## [0.1.0] - 2026-08-02
 
 First release.
@@ -42,4 +57,5 @@ First release.
   resolution; the environment override is DEBUG-only. Installing the app is
   enough — there is no separate CLI to install.
 
+[0.1.1]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.0
