@@ -349,6 +349,35 @@ final class SensorModel: ObservableObject {
         notificationAuth = await Notifications.status()
     }
 
+    /// Send one now, so the delivery path can be proven.
+    ///
+    /// "No room has crossed the threshold yet" and "notifications are broken"
+    /// look identical from the outside, and a warning nobody can test is a
+    /// promise nobody can rely on. This is the only way to tell them apart
+    /// without waiting for the weather.
+    func sendTestNotification() async {
+        notificationAuth = await Notifications.request()
+        guard notificationAuth.canDeliver else {
+            lastError = "macOS is not allowing notifications from SensorLens."
+            lastErrorDetail = "Authorization: \(notificationAuth)"
+            return
+        }
+        await Notifications.post(
+            title: "SensorLens test",
+            body: "Notifications are working. A real one names the room and its CO2 level.")
+        lastError = nil
+        lastErrorDetail = nil
+    }
+
+    /// The highest CO2 among the sensors allowed to warn, and the threshold it
+    /// is measured against. Shown so a configuration that cannot ever fire is
+    /// visible as such.
+    var alertingCO2Peak: (name: String, ppm: Double)? {
+        alertingReadings
+            .compactMap { r in r.metrics["co2_ppm"].map { (r.name, $0) } }
+            .max { $0.1 < $1.1 }
+    }
+
     /// True when the switch is on but macOS will not deliver — a promise the
     /// app cannot keep, and the user's to fix in System Settings.
     var notificationsBlocked: Bool {

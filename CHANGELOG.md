@@ -4,6 +4,17 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-08-03
+
+### Added
+
+- "Send a test" beside the notification switch. "No room has crossed the
+  threshold yet" and "notifications are broken" look identical from the
+  outside, and a warning nobody can test is a promise nobody can rely on.
+- Settings says when the current configuration cannot fire at all — when the
+  highest reading among the watched sensors sits below the threshold, that is
+  worth stating rather than looking like a warning system that never warns.
+
 ## [0.1.2] - 2026-08-03
 
 ### Fixed
@@ -71,6 +82,7 @@ First release.
   resolution; the environment override is DEBUG-only. Installing the app is
   enough — there is no separate CLI to install.
 
+[0.1.3]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.3
 [0.1.2]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.0

@@ -327,7 +327,24 @@ struct CollectionSettings: View {
                             .controlSize(.small)
                     }
                 } else {
-                    Text("Notified once per room per crossing, not on every reading.")
+                    HStack {
+                        Text("Notified once per room per crossing, not on every reading.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        // "Nothing has crossed the threshold yet" and
+                        // "notifications are broken" look identical from
+                        // outside. This is what tells them apart.
+                        Button("Send a test") { Task { await model.sendTestNotification() } }
+                            .controlSize(.small)
+                            .disabled(!prefs.notifyOnCO2)
+                    }
+                }
+
+                // A configuration that cannot ever fire should say so rather
+                // than look like a warning system that simply never warns.
+                if prefs.notifyOnCO2, let peak = model.alertingCO2Peak, peak.ppm < prefs.co2Alert {
+                    Text("Nothing is close to the threshold: the highest reading among the sensors you are watching is \(peak.name) at \(Format.bare("co2_ppm", peak.ppm)), against \(Int(prefs.co2Alert)) ppm.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
