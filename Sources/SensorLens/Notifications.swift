@@ -8,6 +8,34 @@ import UserNotifications
 /// appeared in System Settings → Notifications until an alert happened to fire,
 /// so there was nothing to configure and no way to tell whether it would work —
 /// a switch promising something unverifiable.
+/// Tells macOS to show a banner even when the app is in the foreground.
+///
+/// Without a delegate answering `willPresent`, macOS files a foreground
+/// notification straight into Notification Center and shows nothing — which
+/// looks exactly like a notification that was never sent. A menu-bar app is
+/// frontmost more often than it seems: any time its settings or history window
+/// has focus, which includes the moment the user presses "Send a test".
+///
+/// The delegate must be installed before anything is delivered, and held for
+/// the app's lifetime — `UNUserNotificationCenter.delegate` is a weak reference.
+final class NotificationPresenter: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = NotificationPresenter()
+
+    func install() {
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        // .list as well as .banner, so it is still in Notification Center after
+        // the banner goes: a CO2 warning missed while away from the desk should
+        // not vanish.
+        [.banner, .list]
+    }
+}
+
 enum Notifications {
     enum Authorization: Equatable {
         /// Never asked. The switch has not been turned on yet.

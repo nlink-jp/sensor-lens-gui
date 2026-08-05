@@ -57,6 +57,10 @@ final class SensorModel: ObservableObject {
     // MARK: - Lifecycle
 
     func start() {
+        // Before anything can be delivered: without it a foreground
+        // notification is filed silently and shows no banner at all.
+        NotificationPresenter.shared.install()
+
         activity = ProcessInfo.processInfo.beginActivity(
             options: [.userInitiatedAllowingIdleSystemSleep],
             reason: "collecting sensor readings")

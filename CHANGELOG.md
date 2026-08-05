@@ -4,6 +4,18 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-08-06
+
+### Fixed
+
+- Notifications reached Notification Center but showed no banner, unless the
+  user changed the style to "Alerts" in System Settings. Without a
+  `UNUserNotificationCenterDelegate` answering `willPresent`, macOS files a
+  foreground notification silently — and a menu-bar app is frontmost more often
+  than it seems, including at the exact moment "Send a test" is pressed. The
+  app now asks for the banner explicitly, and for the entry in Notification
+  Center too, so a warning missed while away from the desk does not vanish.
+
 ## [0.1.3] - 2026-08-03
 
 ### Added
@@ -82,6 +94,7 @@ First release.
   resolution; the environment override is DEBUG-only. Installing the app is
   enough — there is no separate CLI to install.
 
+[0.1.4]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.4
 [0.1.3]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.3
 [0.1.2]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nlink-jp/sensor-lens-gui/releases/tag/v0.1.1

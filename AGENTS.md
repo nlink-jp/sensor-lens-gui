@@ -77,6 +77,14 @@ Sources/SensorLens/
   number above it moved on. `.task` is cancelled when the view goes away, so the
   loop ends itself and nothing polls in the background.
 
+- **`NotificationPresenter` must stay installed, and stay strongly held.**
+  Without a `UNUserNotificationCenterDelegate` answering `willPresent`, macOS
+  files a foreground notification into Notification Center and shows no banner —
+  and this app is frontmost whenever its settings window has focus, which
+  includes the moment "Send a test" is pressed. `UNUserNotificationCenter
+  .delegate` is weak, so the presenter is a lifetime singleton installed at the
+  top of `SensorModel.start`, before anything can be delivered.
+
 - **The login-item switch is read from the system, never remembered.** The user
   can add or remove it in System Settings, and a switch disagreeing with the
   system is worse than no switch. `requiresApproval` is its own state for the
