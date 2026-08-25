@@ -23,7 +23,10 @@ fresh signed binary. The app icon is committed at `assets/AppIcon-1024.png`;
 
 ```
 Sources/SensorLens/
-  App.swift           @main, MenuBarExtra + the two Windows, MenuBarLabel
+  Entry.swift         @main; single-instance guard, then SensorLensApp.main()
+  SingleInstance.swift singleInstanceDecision() — startup duplicate-
+                      instance guard (pure; pids in, decision out)
+  App.swift           MenuBarExtra + the two Windows, MenuBarLabel
   Models.swift        Codable mirrors of the CLI's --json
   CLIRunner.swift     binary resolution, process invocation, typed queries
   SensorModel.swift   @MainActor ObservableObject: the tick, state, CO2 alerts
@@ -142,6 +145,18 @@ Sources/SensorLens/
   however small it is; an arrow saying "steady" beside it would contradict the
   picture. `Sparkline.domain`'s floor on padding is what still makes sensor
   wobble read as steady.
+
+- **Notification clicks launch by bundle ID — enforce a single instance.**
+  Clicking a banner makes notificationd open the app via LaunchServices,
+  which resolves `jp.nlink.sensor-lens-gui` among *all* registered copies
+  (`dist/` dev builds, release-verification extractions, `/Applications`)
+  and may start a different copy than the running one → two menu bar
+  items, double collection spending the API budget twice. Guarded at two
+  layers: `LSMultipleInstancesProhibited` (Info.plist, stops
+  LaunchServices launches) and a startup check in `Entry.main`
+  (`singleInstanceDecision`, pure + tested) that exits with a stderr note
+  (covers direct exec / `open -n`). Side effect: to run a `dist/` build,
+  quit the installed instance first — a second copy now refuses to start.
 
 ## Status
 

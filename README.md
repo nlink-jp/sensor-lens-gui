@@ -80,6 +80,10 @@ API starts answering "Unauthorized", exactly as it would for a wrong token. The
 Collection tab shows what has been spent today and what the current schedule
 projects, so the number is visible before it becomes a mystery.
 
+The app is single-instance: starting a second copy (for example, a
+notification click resolving to a different copy of the .app) logs to
+stderr and exits, leaving the running instance alone.
+
 ## Development
 
 ```bash
