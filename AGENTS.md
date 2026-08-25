@@ -12,6 +12,7 @@ it runs, the collector**. macOS 14+, Apple Silicon.
 make build-app   # -> signed dist/SensorLens.app (bundles the CLI)
 make test        # swift test
 make package     # notarize + staple + zip
+make verify-release  # gate: .notarized marker + stapler validate (run before upload)
 swift run        # debug
 ```
 
