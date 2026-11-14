@@ -6,6 +6,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-14
+
+### Security
+
+- **The bundled `sensor-lens` CLI is v0.1.1, built with Go 1.27.4** (it was
+  v0.1.0). The app's behaviour is the bundled CLI's, so a rebuilt CLI reaches
+  this app's users only through a new build of the app. The CLI inside v0.1.5
+  was built with Go 1.26.5; `govulncheck -mode binary` finds 15
+  standard-library advisories in it, in `crypto/tls`, `crypto/x509`,
+  `encoding/asn1`, `net/http`, `net/textproto` and `net/url` — the CLI is what
+  talks to the SwitchBot API. All are fixed by Go 1.27.4. Binary mode shows that
+  an affected function is linked into the binary, not that the CLI calls it.
+  Nothing else in the CLI changed, and nothing in the app's own code.
+
 ### Fixed
 
 - The release zip no longer carries AppleDouble (`._*`) entries: the app is
